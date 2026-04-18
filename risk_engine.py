@@ -1,24 +1,34 @@
-def calculate_risk(user_city, current_city, amount, failed_attempts):
-    score = 0
+import json
+import os
 
-    # Location
-    if user_city.lower() == current_city.lower():
-        score += 30
-    else:
-        score += 10
+def calculate_risk_score(sender_folder, amount):
+    """
+    Analyzes transaction risk using historical averages.
+    Returns: (is_anomaly, risk_level)
+    """
+    user_file = f"{sender_folder}/user.json"
+    
+    if not os.path.exists(user_file):
+        return False, "Low"
 
-    # Amount
-    if amount < 1000:
-        score += 20
-    elif amount <= 5000:
-        score += 10
-    else:
-        score += 5
+    with open(user_file, 'r') as f:
+        data = json.load(f)
 
-    # Failed attempts
-    if failed_attempts == 0:
-        score += 20
-    else:
-        score += 5
+    # Get transaction history (if any)
+    history = data.get("transactions", [])
+    
+    if len(history) < 3:
+        # Not enough data: use a fixed threshold (e.g., ₹5000)
+        if amount > 5000:
+            return True, "Medium (New Account High Value)"
+        return False, "Low"
 
-    return score
+    # Calculate Mean of past transactions
+    amounts = [t['amount'] for t in history]
+    avg_spend = sum(amounts) / len(amounts)
+    
+    # Logic: If current amount is > 3x the average, it's an anomaly
+    if amount > (avg_spend * 3):
+        return True, "High (Value Deviation)"
+    
+    return False, "Low"

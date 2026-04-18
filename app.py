@@ -1,1068 +1,1179 @@
-# # import streamlit as st
-# # import os
-# # import geocoder
-# # import plotly.graph_objects as go
-# # from face_register import register_user, scan_biopay_qr
-# # from model_utils import train_model
-# # from face_auth import authenticate
-# # from blink_auth import blink_verification
-# # from user_utils import (
-# #     get_all_users, get_user_data, update_profile_photo,
-# #     update_failed_attempts, delete_user, rename_user
-# # )
-# # from risk_engine import calculate_risk
-# # from otp_utils import send_otp
-
-# # # ---------------- PAGE CONFIG & STYLING ----------------
-# # st.set_page_config(page_title="BioPay | Secure Face Payments", layout="wide", page_icon="🛡️")
-
-# # # Custom CSS for "Grand" Look and GPay-style Tick Animation
-# # st.markdown("""
-# #     <style>
-# #     .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
-# #     .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: #ffffff; }
-# #     .main-title {
-# #         font-size: 3.5rem !important;
-# #         font-weight: 800;
-# #         text-align: center;
-# #         background: -webkit-linear-gradient(#00d2ff, #3a7bd5);
-# #         -webkit-background-clip: text;
-# #         -webkit-text-fill-color: transparent;
-# #         margin-bottom: 1rem !important;
-# #     }
-# #     div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown):not(:first-child) {
-# #         background: none; border: none; box-shadow: none;
-# #     }
-# #     .stTabs [data-testid="stVerticalBlock"] {
-# #         background: rgba(255, 255, 255, 0.05);
-# #         backdrop-filter: blur(15px);
-# #         border-radius: 20px;
-# #         padding: 40px;
-# #         border: 1px solid rgba(255, 255, 255, 0.1);
-# #         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-# #     }
-# #     hr { margin: 1em 0 !important; border: 0 !important; border-top: 1px solid rgba(255,255,255,0.1) !important; background: transparent !important; }
-# #     .stButton>button {
-# #         border-radius: 12px;
-# #         background: linear-gradient(45deg, #3a7bd5, #00d2ff);
-# #         color: white; border: none; padding: 12px; font-weight: bold; transition: 0.3s;
-# #     }
-    
-# #     /* Success Tick Animation CSS */
-# #     .checkmark-circle {
-# #         width: 150px; height: 150px;
-# #         position: relative; display: inline-block; vertical-align: top;
-# #         margin-left: auto; margin-right: auto; left: 0; right: 0; text-align: center;
-# #     }
-# #     .checkmark-circle .background { width: 150px; height: 150px; border-radius: 50%; background: #2ecc71; position: absolute; }
-# #     .checkmark-circle .checkmark { border-radius: 5px; }
-# #     .checkmark-circle .checkmark.draw:after {
-# #         animation-delay: 100ms; animation-duration: 1s; animation-timing-function: ease;
-# #         animation-name: checkmark; transform: scaleX(-1) rotate(135deg);
-# #     }
-# #     .checkmark-circle .checkmark:after {
-# #         opacity: 1; height: 75px; width: 37.5px;
-# #         transform-origin: left top; border-right: 15px solid white;
-# #         border-top: 15px solid white; content: '';
-# #         left: 37.5px; top: 75px; position: absolute;
-# #     }
-# #     @keyframes checkmark {
-# #         0% { height: 0; width: 0; opacity: 1; }
-# #         20% { height: 0; width: 37.5px; opacity: 1; }
-# #         40% { height: 75px; width: 37.5px; opacity: 1; }
-# #         100% { height: 75px; width: 37.5px; opacity: 1; }
-# #     }
-# #     </style>
-# #     """, unsafe_allow_html=True)
-
-# # st.markdown('<h1 class="main-title">BIOPAY SECURE SYSTEM</h1>', unsafe_allow_html=True)
-
-# # # ---------------- SESSION STATE ----------------
-# # if "balance" not in st.session_state:
-# #     st.session_state.balance = 5000
-# # if "qr_scanned_id" not in st.session_state:
-# #     st.session_state.qr_scanned_id = ""
-# # if "payment_step" not in st.session_state:
-# #     st.session_state.payment_step = "input"
-# # if "last_tx_details" not in st.session_state:
-# #     st.session_state.last_tx_details = {}
-
-# # # ---------------- TOP NAVIGATION ----------------
-# # tab_home, tab_reg, tab_list, tab_pay = st.tabs(["🏠 HOME", "👤 REGISTER", "📂 DIRECTORY", "💸 PAYMENT"])
-
-# # # ==================================================
-# # # TAB 0: HOME DASHBOARD
-# # # ==================================================
-# # with tab_home:
-# #     st.markdown("### 📱 Digital Wallet Dashboard")
-# #     h_col1, h_col2, h_col3 = st.columns(3)
-    
-# #     with h_col1:
-# #         st.markdown("#### QR Scanner")
-# #         uploaded_qr = st.file_uploader("Upload QR Image", type=['png', 'jpg', 'jpeg'], key="qr_home")
-# #         if st.button("🔍 OPEN CAMERA SCANNER"):
-# #             scanned_id = scan_biopay_qr()
-# #             if scanned_id:
-# #                 st.session_state.qr_scanned_id = scanned_id
-# #                 st.success(f"✅ ID Detected: {scanned_id}")
-# #                 st.info("Switch to **PAYMENT** tab to complete.")
-        
-# #     with h_col2:
-# #         st.markdown("#### Manual Pay")
-# #         m_id_home = st.text_input("Enter Bio-ID", key="manual_home")
-# #         if st.button("Proceed"):
-# #             st.session_state.qr_scanned_id = m_id_home
-# #             st.info("Details saved. Open **PAYMENT** tab.")
-
-# #     with h_col3:
-# #         st.markdown("#### Secure Balance")
-# #         users = get_all_users()
-# #         if users:
-# #             u_check = st.selectbox("Select Profile", users, key="home_bal")
-# #             if st.button("🔓 SHOW BALANCE"):
-# #                 st.info("Verifying Biometrics...")
-                
-# #                 # --- THE MODIFICATION START ---
-# #                 # authenticate() now strictly checks if 'u_check' is in front of the cam
-# #                 if authenticate(u_check):
-# #                     # We store the verified user in session_state to unlock the Payment Tab
-# #                     st.session_state.current_authenticated_user = u_check 
-                    
-# #                     u_info = get_user_data(u_check)
-# #                     bal = u_info.get('balance', 5000)
-                    
-# #                     st.metric("Verified Balance", f"₹{bal}")
-# #                     st.success(f"✅ Identity Confirmed: {u_check}")
-# #                     st.balloons() # Optional: small visual cue for successful login
-# #                 else:
-# #                     # If auth fails, we clear any previous session to prevent fraud
-# #                     if "current_authenticated_user" in st.session_state:
-# #                         del st.session_state.current_authenticated_user
-# #                     st.error("❌ Face Mismatch! Access Denied.")
-# #                 # --- THE MODIFICATION END ---
-# # # ==================================================
-# # # TAB 1: REGISTER USER
-# # # ==================================================
-# # with tab_reg:
-# #     st.markdown("### ✨ Identity Enrollment")
-# #     col1, col2 = st.columns(2)
-# #     with col1:
-# #         full_name = st.text_input("Full Name", key="reg_fn")
-# #         email = st.text_input("Email ID", key="reg_em")
-# #         bank_name = st.selectbox("Select Bank", ["SBI", "HDFC", "ICICI", "Axis", "PNB"], key="reg_bank")
-# #     with col2:
-# #         mobile = st.text_input("Mobile Number", key="reg_mb")
-# #         native_city = st.text_input("Native City", key="reg_nc")
-# #         agree = st.checkbox("I accept Privacy Terms", key="reg_ag")
-
-# #     if st.button("🚀 INITIALIZE CAPTURE"):
-# #         with st.status("Registering...") as status:
-# #             register_user(full_name, email, mobile, native_city, bank_name, {})
-# #             train_model()
-# #             status.update(label="Complete!", state="complete")
-# #         st.success("Registration Successful!")
-
-# # # ==================================================
-# # # TAB 2: DIRECTORY
-# # # ==================================================
-# # # ==================================================
-# # # TAB 2: REGISTERED PROFILES (DIRECTORY)
-# # # ==================================================
-# # with tab_list:
-# #     st.markdown("### 📂 Registered Biometric Profiles")
-# #     users = get_all_users()
-    
-# #     if not users:
-# #         st.info("No active biometric profiles found.")
-# #     else:
-# #         # Display users in a clean 3-column grid
-# #         for i in range(0, len(users), 3):
-# #             cols = st.columns(3)
-# #             for j in range(3):
-# #                 if i + j < len(users):
-# #                     user_folder = users[i + j]
-# #                     user_info = get_user_data(user_folder)
-                    
-# #                     # Metadata Extraction
-# #                     full_name = user_info.get("full_name", "Unknown User")
-# #                     bio_id = user_info.get("unique_id", "Not Assigned")
-                    
-# #                     with cols[j]:
-# #                         with st.container(border=True):
-# #                             # 1. Profile Photo
-# #                             img_path = f"dataset/{user_folder}/profile.jpg"
-# #                             if os.path.exists(img_path):
-# #                                 st.image(img_path, width=250)
-# #                             else:
-# #                                 st.markdown("👤 **Photo Not Found**")
-                            
-# #                             st.markdown(f"#### {full_name}")
-# #                             st.caption(f"🆔 {bio_id}")
-
-# #                             # --- THE FIX: QR CODE FEATURE ---
-# #                             qr_path = f"dataset/{user_folder}/qr_code.png"
-# #                             if os.path.exists(qr_path):
-# #                                 with st.expander("🔍 Show My QR Code"):
-# #                                     st.image(qr_path, caption="Scan this to receive payments", width=200)
-# #                             else:
-# #                                 st.warning("⚠️ QR Code missing for this profile.")
-
-# #                             # 2. Delete Action
-# #                             if st.button("🗑️ Purge Profile", key=f"del_{user_folder}"):
-# #                                 delete_user(user_folder)
-# #                                 st.rerun()
-
-# # # ==================================================
-# # # TAB 3: PAYMENT (GRAND 3-STAGE LOGIC)
-# # # ==================================================
-# # # ==================================================
-# # # TAB 3: PAYMENT (SECURE FLOW WITH SUCCESS SCREEN)
-# # # ==================================================
-# # with tab_pay:
-# #     if "current_authenticated_user" not in st.session_state:
-# #         st.warning("🔒 Please verify your identity in the HOME tab before making a payment.")
-# #         st.stop()
-
-# #     sender = st.session_state.current_authenticated_user
-# #     u_info = get_user_data(sender)
-# #     current_balance = u_info.get("balance", 5000)
-
-# #     # ---------------- STAGE 1: INPUT ----------------
-# #     if st.session_state.payment_step == "input":
-# #         st.markdown("### 💸 Secure Payment Terminal")
-# #         st.caption(f"Authenticated as: **{u_info.get('full_name')}**")
-
-# #         col1, col2 = st.columns(2)
-
-# #         with col1:
-# #             st.markdown("#### 🔍 Scan Receiver QR")
-# #             if st.button("OPEN QR SCANNER"):
-# #                 rid = scan_biopay_qr()
-# #                 if rid:
-# #                     st.session_state.qr_scanned_id = rid
-# #                     st.session_state.payment_step = "confirm"
-# #                     st.rerun()
-
-# #         with col2:
-# #             st.markdown("#### ⌨️ Manual Receiver Entry")
-# #             rid = st.text_input("Receiver Bio-ID", value=st.session_state.qr_scanned_id)
-# #             if st.button("Proceed"):
-# #                 if rid:
-# #                     st.session_state.qr_scanned_id = rid
-# #                     st.session_state.payment_step = "confirm"
-# #                     st.rerun()
-
-# #     # ---------------- STAGE 2: CONFIRM ----------------
-# #     elif st.session_state.payment_step == "confirm":
-# #         st.markdown("### 🛡️ Confirm Transaction")
-
-# #         with st.container(border=True):
-# #             c1, c2 = st.columns(2)
-# #             with c1:
-# #                 st.write("**Receiver Bio-ID**")
-# #                 st.info(st.session_state.qr_scanned_id)
-# #                 amount = st.number_input("Amount (₹)", min_value=1, value=100)
-
-# #             with c2:
-# #                 st.write("**Sender**")
-# #                 st.success(u_info.get("full_name"))
-# #                 st.metric("Available Balance", f"₹{current_balance}")
-
-# #         if amount > current_balance:
-# #             st.error("❌ Insufficient balance")
-# #             can_pay = False
-# #         else:
-# #             can_pay = True
-
-# #         b1, b2 = st.columns(2)
-# #         with b1:
-# #             if st.button("CANCEL"):
-# #                 st.session_state.payment_step = "input"
-# #                 st.rerun()
-
-# #         with b2:
-# #             if st.button("AUTHENTICATE & PAY", disabled=not can_pay):
-# #                 st.info("🔐 Face Verification")
-# #                 if authenticate(sender):
-# #                     st.info("👁️ Liveness Verification")
-# #                     if blink_verification():
-# #                         # --- SUCCESS PATH ---
-# #                         from user_utils import update_transaction
-# #                         update_transaction(sender, amount, st.session_state.qr_scanned_id)
-
-# #                         st.session_state.last_tx_details = {
-# #                             "sender": sender,
-# #                             "receiver": st.session_state.qr_scanned_id,
-# #                             "amount": amount
-# #                         }
-
-# #                         st.session_state.payment_step = "success"
-# #                         st.rerun()
-# #                     else:
-# #                         st.error("❌ Liveness failed (Blink not detected)")
-# #                 else:
-# #                     st.error("❌ Face mismatch")
-
-# #     # ---------------- STAGE 3: SUCCESS ----------------
-# #     elif st.session_state.payment_step == "success":
-# #         tx = st.session_state.last_tx_details
-
-# #         # SUCCESS TICK
-# #         st.markdown("""
-# #         <div style="text-align:center; padding:40px;">
-# #             <div class="checkmark-circle">
-# #                 <div class="background"></div>
-# #                 <div class="checkmark draw"></div>
-# #             </div>
-# #             <h1 style="color:#2ecc71; margin-top:20px;">Transaction Successful</h1>
-# #         </div>
-# #         """, unsafe_allow_html=True)
-
-# #         # TRANSACTION RECEIPT
-# #         with st.container(border=True):
-# #             st.markdown("### 📄 Transaction Status")
-
-# #             c1, c2 = st.columns(2)
-# #             with c1:
-# #                 st.write("**Sender Bio-ID**")
-# #                 st.code(tx["sender"])
-# #                 st.write("**Receiver Bio-ID**")
-# #                 st.code(tx["receiver"])
-
-# #             with c2:
-# #                 st.write("**Amount Paid**")
-# #                 st.markdown(f"<h2 style='color:#2ecc71;'>₹ {tx['amount']}</h2>", unsafe_allow_html=True)
-# #                 st.write("**Status**")
-# #                 st.success("SUCCESS")
-
-# #         if st.button("DONE"):
-# #             st.session_state.payment_step = "input"
-# #             st.session_state.qr_scanned_id = ""
-# #             st.session_state.last_tx_details = {}
-# #             st.rerun()
-
-# import streamlit as st
-# import os
-# import geocoder
-# import plotly.graph_objects as go
-# import pickle
-# from face_register import register_user, scan_biopay_qr
-# from model_utils import train_model
-# from face_auth import authenticate
-# from blink_auth import blink_verification
-# from user_utils import (
-#     get_all_users, get_user_data, update_profile_photo,
-#     update_failed_attempts, delete_user, rename_user, update_transaction
-# )
-
-# # ---------------- PAGE CONFIG & STYLING ----------------
-# st.set_page_config(page_title="BioPay | Secure Face Payments", layout="wide", page_icon="🛡️")
-
-# st.markdown("""
-#     <style>
-#     .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
-#     .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: #ffffff; }
-#     .main-title {
-#         font-size: 3.5rem !important;
-#         font-weight: 800;
-#         text-align: center;
-#         background: -webkit-linear-gradient(#00d2ff, #3a7bd5);
-#         -webkit-background-clip: text;
-#         -webkit-text-fill-color: transparent;
-#         margin-bottom: 1rem !important;
-#     }
-#     .stTabs [data-testid="stVerticalBlock"] {
-#         background: rgba(255, 255, 255, 0.05);
-#         backdrop-filter: blur(15px);
-#         border-radius: 20px;
-#         padding: 40px;
-#         border: 1px solid rgba(255, 255, 255, 0.1);
-#     }
-#     .stButton>button {
-#         border-radius: 12px;
-#         background: linear-gradient(45deg, #3a7bd5, #00d2ff);
-#         color: white; font-weight: bold; width: 100%;
-#     }
-#     .checkmark-circle {
-#         width: 150px; height: 150px;
-#         position: relative; display: inline-block;
-#         margin: 0 auto; text-align: center;
-#     }
-#     .checkmark-circle .background { width: 150px; height: 150px; border-radius: 50%; background: #2ecc71; position: absolute; }
-#     .checkmark-circle .checkmark.draw:after {
-#         animation-delay: 100ms; animation-duration: 1s; animation-timing-function: ease;
-#         animation-name: checkmark; transform: scaleX(-1) rotate(135deg);
-#     }
-#     .checkmark-circle .checkmark:after {
-#         opacity: 1; height: 75px; width: 37.5px;
-#         transform-origin: left top; border-right: 15px solid white;
-#         border-top: 15px solid white; content: '';
-#         left: 37.5px; top: 75px; position: absolute;
-#     }
-#     @keyframes checkmark {
-#         0% { height: 0; width: 0; opacity: 1; }
-#         20% { height: 0; width: 37.5px; opacity: 1; }
-#         40% { height: 75px; width: 37.5px; opacity: 1; }
-#         100% { height: 75px; width: 37.5px; opacity: 1; }
-#     }
-#     </style>
-#     """, unsafe_allow_html=True)
-
-# st.markdown('<h1 class="main-title">BIOPAY SECURE SYSTEM</h1>', unsafe_allow_html=True)
-
-# if "qr_scanned_id" not in st.session_state: st.session_state.qr_scanned_id = ""
-# if "payment_step" not in st.session_state: st.session_state.payment_step = "input"
-# if "last_tx_details" not in st.session_state: st.session_state.last_tx_details = {}
-
-# tab_home, tab_reg, tab_list, tab_pay = st.tabs(["🏠 HOME", "👤 REGISTER", "📂 DIRECTORY", "💸 PAYMENT"])
-
-# with tab_home:
-#     st.markdown("### 📱 Dashboard")
-#     h_col1, h_col2, h_col3 = st.columns(3)
-#     with h_col1:
-#         if st.button("🔍 OPEN CAMERA SCANNER"):
-#             scanned = scan_biopay_qr()
-#             if scanned:
-#                 st.session_state.qr_scanned_id = scanned
-#                 st.success(f"ID Detected: {scanned}")
-#     with h_col2:
-#         m_id = st.text_input("Manual Bio-ID Entry")
-#         if st.button("Save ID"): st.session_state.qr_scanned_id = m_id
-#     with h_col3:
-#         users = get_all_users()
-#         if users:
-#             u_check = st.selectbox("Select Profile", users)
-#             if st.button("🔓 SHOW BALANCE"):
-#                 if authenticate(u_check):
-#                     st.session_state.current_authenticated_user = u_check
-#                     u_data = get_user_data(u_check)
-#                     st.metric("Balance", f"₹{u_data.get('balance', 0)}")
-#                     st.success("Identity Verified")
-
-# with tab_reg:
-#     st.markdown("### ✨ Enrollment")
-#     fn = st.text_input("Full Name")
-#     em = st.text_input("Email")
-#     bn = st.selectbox("Bank", ["SBI", "HDFC", "ICICI", "Axis"])
-#     mb = st.text_input("Mobile")
-#     nc = st.text_input("Native City")
-#     if st.button("🚀 REGISTER"):
-#         register_user(fn, em, mb, nc, bn, {})
-#         train_model()
-#         st.success("User Registered!")
-
-# with tab_list:
-#     users = get_all_users()
-#     for u in users:
-#         with st.expander(f"User: {u}"):
-#             u_info = get_user_data(u)
-#             st.write(f"Bio-ID: {u_info.get('unique_id')}")
-#             if os.path.exists(f"dataset/{u}/qr_code.png"):
-#                 st.image(f"dataset/{u}/qr_code.png", width=150)
-#             if st.button("🗑️ Delete", key=f"del_{u}"):
-#                 delete_user(u); st.rerun()
-
-# # with tab_pay:
-# #     if "current_authenticated_user" not in st.session_state:
-# #         st.warning("🔒 Please verify identity in HOME tab first.")
-# #         st.stop()
-
-# #     sender = st.session_state.current_authenticated_user
-# #     u_info = get_user_data(sender)
-    
-# #     if st.session_state.payment_step == "input":
-# #         st.markdown("### 💸 Payment Terminal")
-# #         st.caption(f"Payer: {u_info.get('full_name')}")
-# #         rid = st.text_input("Recipient Bio-ID", value=st.session_state.qr_scanned_id)
-# #         if st.button("Proceed to Pay"):
-# #             st.session_state.qr_scanned_id = rid
-# #             st.session_state.payment_step = "confirm"
-# #             st.rerun()
-
-# #     elif st.session_state.payment_step == "confirm":
-# #         st.markdown("### 🛡️ Confirm Transaction")
-# #         current_bal = u_info.get("balance", 0)
-# #         c1, c2 = st.columns(2)
-# #         with c1:
-# #             st.info(f"To: {st.session_state.qr_scanned_id}")
-# #             amt = st.number_input("Amount (₹)", min_value=1, value=100)
-# #         with c2:
-# #             st.metric("Your Balance", f"₹{current_bal}")
-        
-# #         if st.button("⚡ AUTHENTICATE & SEND", disabled=(amt > current_bal)):
-# #             status = st.empty()
-# #             with status.container():
-# #                 st.write("⏳ Step 1: Face Auth...")
-# #                 if authenticate(sender):
-# #                     st.write("✅ Step 1 Success")
-# #                     st.write("⏳ Step 2: Liveness...")
-# #                     if blink_verification():
-# #                         if update_transaction(sender, amt, st.session_state.qr_scanned_id):
-# #                             st.session_state.last_tx_details = {
-# #                                 "sender": u_info.get('unique_id'),
-# #                                 "receiver": st.session_state.qr_scanned_id,
-# #                                 "amount": amt
-# #                             }
-# #                             st.session_state.payment_step = "success"
-# #                             st.rerun()
-# #                     else: st.error("Liveness Failed")
-# #                 else: st.error("Face Auth Failed")
-
-# #     elif st.session_state.payment_step == "success":
-# #         tx = st.session_state.last_tx_details
-# #         st.markdown("""
-# #             <div style="text-align:center; padding:30px;">
-# #                 <div class="checkmark-circle"><div class="background"></div><div class="checkmark draw"></div></div>
-# #                 <h1 style="color:#2ecc71;">Transaction Successful</h1>
-# #             </div>""", unsafe_allow_html=True)
-# #         with st.container(border=True):
-# #             st.write(f"**From ID:** {tx['sender']}")
-# #             st.write(f"**To ID:** {tx['receiver']}")
-# #             st.markdown(f"## ₹ {tx['amount']}")
-# #         if st.button("DONE"):
-# #             st.session_state.payment_step = "input"
-# #             st.session_state.qr_scanned_id = ""
-# #             st.rerun()
-
-# # with tab_pay:
-# #     # 1. Verification Check: Ensure a sender has logged in via the HOME tab
-# #     if "current_authenticated_user" not in st.session_state:
-# #         st.warning("🔒 Verification Required: Please authenticate your face in the **HOME** tab first.")
-# #         st.stop()
-
-# #     sender_folder = st.session_state.current_authenticated_user
-# #     u_info = get_user_data(sender_folder)
-# #     sender_bio_id = u_info.get("unique_id", "Not Assigned")
-    
-# #     # --- STAGE 1: TRANSACTION INPUT ---
-# #     if st.session_state.payment_step == "input":
-# #         st.markdown(f"### 💸 Secure Payment Terminal")
-        
-# #         # Display IDs as Markdown options for clarity
-# #         st.markdown(f"**Sender Bio-ID:** `{sender_bio_id}`")
-        
-# #         col_scan, col_manual = st.columns(2)
-# #         with col_scan:
-# #             st.markdown("#### 📷 Scan QR Code")
-# #             if st.button("🚀 OPEN QR CAMERA", width="stretch"):
-# #                 # Opens camera module to scan receiver's QR
-# #                 scanned_id = scan_biopay_qr() 
-# #                 if scanned_id:
-# #                     st.session_state.qr_scanned_id = scanned_id
-# #                     st.session_state.payment_step = "confirm"
-# #                     st.rerun()
-
-# #         with col_manual:
-# #             st.markdown("#### ⌨️ Manual Entry")
-# #             m_id = st.text_input("Enter Receiver Bio-ID", value=st.session_state.qr_scanned_id)
-# #             if st.button("Proceed to Verify"):
-# #                 if m_id:
-# #                     st.session_state.qr_scanned_id = m_id
-# #                     st.session_state.payment_step = "confirm"
-# #                     st.rerun()
-
-# #     # --- STAGE 2: IMAGE VERIFICATION & CONFIRMATION ---
-# #     elif st.session_state.payment_step == "confirm":
-# #         current_bal = u_info.get("balance", 0)
-# #         st.markdown("### 🛡️ Secure Transaction Confirmation")
-        
-# #         # Displaying IDs in Markdown format
-# #         st.markdown(f"**Sender:** `{sender_bio_id}`")
-# #         st.markdown(f"**Receiver:** `{st.session_state.qr_scanned_id}`")
-        
-# #         with st.container(border=True):
-# #             pay_col1, pay_col2 = st.columns(2)
-# #             with pay_col1:
-# #                 amount = st.number_input("Transaction Value (₹)", min_value=1, value=100)
-# #             with pay_col2:
-# #                 st.metric("Available Balance", f"₹{current_bal}")
-
-# #         if amount > current_bal:
-# #             st.error("🛑 Money limit exceeded.")
-# #             can_pay = False
-# #         else:
-# #             can_pay = True
-
-# #         if st.button("⚡ VERIFY IMAGE & SEND", disabled=not can_pay):
-# #             status = st.empty()
-# #             with status.container():
-# #                 st.write("⏳ **Opening Camera for Face Verification...**")
-# #                 # Sender must take an image (via camera) to verify identity
-# #                 if authenticate(sender_folder):
-# #                     st.write("✅ **Face Authenticated Successfully!**")
-# #                     st.write("⏳ **Performing Liveness Check...**")
-                    
-# #                     if blink_verification():
-# #                         # Execute the backend balance update
-# #                         if update_transaction(sender_folder, amount, st.session_state.qr_scanned_id):
-# #                             st.session_state.last_tx_details = {
-# #                                 "sender": sender_bio_id,
-# #                                 "receiver": st.session_state.qr_scanned_id,
-# #                                 "amount": amount
-# #                             }
-# #                             st.session_state.payment_step = "success"
-# #                             st.rerun()
-# #                     else:
-# #                         st.error("Liveness Failed.")
-# #                 else:
-# #                     st.error("Identity Mismatch.")
-
-# #     # --- STAGE 3: SUCCESS & RECEIPT ---
-# #     elif st.session_state.payment_step == "success":
-# #         tx = st.session_state.last_tx_details
-# #         st.markdown("""
-# #             <div style="text-align:center; padding:30px;">
-# #                 <div class="checkmark-circle"><div class="background"></div><div class="checkmark draw"></div></div>
-# #                 <h1 style="color:#2ecc71;">Transaction Successful</h1>
-# #             </div>""", unsafe_allow_html=True)
-        
-        
-        
-# #         with st.container(border=True):
-# #             st.markdown(f"**From ID:** `{tx['sender']}`")
-# #             st.markdown(f"**To ID:** `{tx['receiver']}`")
-# #             st.markdown(f"## ₹ {tx['amount']}")
-        
-# #         if st.button("DONE"):
-# #             st.session_state.payment_step = "input"
-# #             st.session_state.qr_scanned_id = ""
-# #             st.rerun()
-
-# with tab_pay:
-#     if "current_authenticated_user" not in st.session_state:
-#         st.warning("🔒 Verification Required: Please authenticate your face in the **HOME** tab first.")
-#         st.stop()
-
-#     # Pass the specific folder name to authenticate() for targeted checking
-#     sender_folder = st.session_state.current_authenticated_user
-#     u_info = get_user_data(sender_folder)
-#     sender_bio_id = u_info.get("unique_id", "Not Assigned")
-    
-#     if st.session_state.payment_step == "input":
-#         st.markdown(f"### 💸 Secure Payment Terminal")
-#         st.markdown(f"**Sender Bio-ID:** `{sender_bio_id}`")
-#         # ... (Existing QR scan and Manual input code) ...
-
-#     elif st.session_state.payment_step == "confirm":
-#         current_bal = u_info.get("balance", 0)
-#         st.markdown(f"**Sender:** `{sender_bio_id}`")
-#         st.markdown(f"**Receiver:** `{st.session_state.qr_scanned_id}`")
-        
-#         # Validation and Verify Button
-#         if st.button("⚡ VERIFY IMAGE & SEND"):
-#             status = st.empty()
-#             with status.container():
-#                 st.write("⏳ **Opening Camera for Face Verification...**")
-                
-#                 # STRICT AUTHENTICATION: Pass sender_folder to ensure only their face works
-#                 if authenticate(sender_folder):
-#                     st.write("✅ **Face Authenticated Successfully!**")
-#                     if blink_verification():
-#                         if update_transaction(sender_folder, amount, st.session_state.qr_scanned_id):
-#                             st.session_state.last_tx_details = {
-#                                 "sender": sender_bio_id,
-#                                 "receiver": st.session_state.qr_scanned_id,
-#                                 "amount": amount
-#                             }
-#                             st.session_state.payment_step = "success"
-#                             st.rerun()
-#                 else:
-#                     st.error(f"❌ Security Alert: Face does not match account holder ({sender_folder}).")
-
 import streamlit as st
 import os
 import geocoder
 import plotly.graph_objects as go
 import pickle
+import threading
 from face_register import register_user, scan_biopay_qr
 from model_utils import train_model
 from face_auth import authenticate
-from blink_auth import blink_verification
+from blink_auth import challenge_response_auth
+from otp_utils import send_transaction_mail
+from risk_engine import calculate_risk_score
 from user_utils import (
     get_all_users, get_user_data, update_profile_photo,
-    update_failed_attempts, delete_user, rename_user, update_transaction
+    update_failed_attempts, delete_user, rename_user, update_transaction, update_user_balance
 )
 
 # ---------------- PAGE CONFIG & STYLING ----------------
 st.set_page_config(page_title="BioPay | Secure Face Payments", layout="wide", page_icon="🛡️")
 
 st.markdown("""
-    <style>
-    .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
-    .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: #ffffff; }
-    .main-title {
-        font-size: 3.5rem !important;
-        font-weight: 800;
-        text-align: center;
-        background: -webkit-linear-gradient(#00d2ff, #3a7bd5);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem !important;
-    }
-    .stTabs [data-testid="stVerticalBlock"] {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(15px);
-        border-radius: 20px;
-        padding: 40px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .stButton>button {
-        border-radius: 12px;
-        background: linear-gradient(45deg, #3a7bd5, #00d2ff);
-        color: white; font-weight: bold; width: 100%;
-    }
-    .checkmark-circle {
-        width: 150px; height: 150px;
-        position: relative; display: inline-block;
-        margin: 0 auto; text-align: center;
-    }
-    .checkmark-circle .background { width: 150px; height: 150px; border-radius: 50%; background: #2ecc71; position: absolute; }
-    .checkmark-circle .checkmark.draw:after {
-        animation-delay: 100ms; animation-duration: 1s; animation-timing-function: ease;
-        animation-name: checkmark; transform: scaleX(-1) rotate(135deg);
-    }
-    .checkmark-circle .checkmark:after {
-        opacity: 1; height: 75px; width: 37.5px;
-        transform-origin: left top; border-right: 15px solid white;
-        border-top: 15px solid white; content: '';
-        left: 37.5px; top: 75px; position: absolute;
-    }
-    @keyframes checkmark {
-        0% { height: 0; width: 0; opacity: 1; }
-        20% { height: 0; width: 37.5px; opacity: 1; }
-        40% { height: 75px; width: 37.5px; opacity: 1; }
-        100% { height: 75px; width: 37.5px; opacity: 1; }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-st.markdown('<h1 class="main-title">BIOPAY SECURE SYSTEM</h1>', unsafe_allow_html=True)
+<style>
+/* ─── RESET & ROOT ──────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:          #07080d;
+    --surface:     #0e1018;
+    --card:        #13151f;
+    --border:      rgba(255,255,255,0.07);
+    --border-glow: rgba(99,179,237,0.35);
+    --accent:      #63b3ed;
+    --accent2:     #4fd1c5;
+    --accent3:     #f6ad55;
+    --success:     #48bb78;
+    --danger:      #fc8181;
+    --warn:        #f6ad55;
+    --text:        #e8ecf4;
+    --text-muted:  #7b8494;
+    --font-head:   'Syne', sans-serif;
+    --font-body:   'DM Sans', sans-serif;
+    --r:           14px;
+    --r-lg:        20px;
+}
+
+/* ─── APP SHELL ─────────────────────────────────── */
+.stApp {
+    background: var(--bg) !important;
+    font-family: var(--font-body) !important;
+    color: var(--text) !important;
+}
+
+/* Subtle grid lines background */
+.stApp::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(99,179,237,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,179,237,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.block-container {
+    padding: 2rem 2.5rem 3rem !important;
+    max-width: 1280px !important;
+}
+
+/* ─── TITLE ─────────────────────────────────────── */
+.bp-title-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 2.4rem 0 1.6rem;
+}
+
+.bp-logo {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 0 28px rgba(99,179,237,0.4);
+}
+
+.bp-title {
+    font-family: var(--font-head);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #fff;
+}
+
+.bp-title span {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.bp-tagline {
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2.2rem;
+}
+
+/* ─── TABS ───────────────────────────────────────── */
+.stTabs [role="tablist"] {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 5px !important;
+    gap: 4px !important;
+}
+
+.stTabs [role="tab"] {
+    font-family: var(--font-head) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    color: var(--text-muted) !important;
+    border-radius: 9px !important;
+    padding: 9px 20px !important;
+    border: none !important;
+    background: transparent !important;
+    transition: all 0.2s ease !important;
+}
+
+.stTabs [role="tab"][aria-selected="true"] {
+    background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
+    color: #07080d !important;
+    box-shadow: 0 4px 18px rgba(99,179,237,0.35) !important;
+}
+
+.stTabs [data-testid="stTabsContent"] {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r-lg) !important;
+    padding: 2.5rem 2rem !important;
+    margin-top: 12px !important;
+}
+
+/* ─── SECTION HEADERS ────────────────────────────── */
+h3 {
+    font-family: var(--font-head) !important;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: var(--text) !important;
+    letter-spacing: -0.02em !important;
+    margin-bottom: 1.2rem !important;
+}
+
+h4 {
+    font-family: var(--font-head) !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 0.8rem !important;
+}
+
+/* ─── BUTTONS ────────────────────────────────────── */
+.stButton > button {
+    font-family: var(--font-head) !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    border-radius: var(--r) !important;
+    padding: 0.7rem 1.5rem !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
+    color: #07080d !important;
+    box-shadow: 0 4px 18px rgba(99,179,237,0.25) !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 28px rgba(99,179,237,0.4) !important;
+}
+
+.stButton > button:active { transform: translateY(0) !important; }
+
+.stButton > button:disabled {
+    background: var(--surface) !important;
+    color: var(--text-muted) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    cursor: not-allowed !important;
+}
+
+/* ─── INPUTS ─────────────────────────────────────── */
+.stTextInput > label,
+.stSelectbox > label,
+.stNumberInput > label {
+    font-family: var(--font-head) !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 6px !important;
+}
+
+.stTextInput input,
+.stNumberInput input {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r) !important;
+    color: var(--text) !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.95rem !important;
+    padding: 0.65rem 1rem !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(99,179,237,0.15) !important;
+}
+
+/* Selectbox */
+.stSelectbox [data-baseweb="select"] > div {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r) !important;
+    color: var(--text) !important;
+    font-family: var(--font-body) !important;
+}
+
+/* ─── CHECKBOX ───────────────────────────────────── */
+.stCheckbox label {
+    font-family: var(--font-body) !important;
+    font-size: 0.88rem !important;
+    color: var(--text-muted) !important;
+}
+
+/* ─── METRICS ────────────────────────────────────── */
+[data-testid="stMetric"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r) !important;
+    padding: 1rem 1.2rem !important;
+}
+
+[data-testid="stMetricLabel"] {
+    font-family: var(--font-head) !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    color: var(--text-muted) !important;
+}
+
+[data-testid="stMetricValue"] {
+    font-family: var(--font-head) !important;
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    color: var(--accent) !important;
+}
+
+/* ─── ALERTS ─────────────────────────────────────── */
+.stAlert {
+    border-radius: var(--r) !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.88rem !important;
+    border: none !important;
+}
+
+.stAlert[data-baseweb="notification"] {
+    background: rgba(99,179,237,0.08) !important;
+    border-left: 3px solid var(--accent) !important;
+}
+
+/* Success */
+div[data-testid="stAlert"] > div[class*="success"] {
+    background: rgba(72,187,120,0.1) !important;
+    border-left: 3px solid var(--success) !important;
+    color: #9ae6b4 !important;
+}
+
+/* Error */
+div[data-testid="stAlert"] > div[class*="error"] {
+    background: rgba(252,129,129,0.1) !important;
+    border-left: 3px solid var(--danger) !important;
+    color: #feb2b2 !important;
+}
+
+/* Warning */
+div[data-testid="stAlert"] > div[class*="warning"] {
+    background: rgba(246,173,85,0.1) !important;
+    border-left: 3px solid var(--warn) !important;
+    color: #fbd38d !important;
+}
+
+/* ─── EXPANDER ───────────────────────────────────── */
+.streamlit-expanderHeader {
+    font-family: var(--font-head) !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r) !important;
+    color: var(--text) !important;
+    padding: 0.8rem 1rem !important;
+}
+
+.streamlit-expanderContent {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-top: none !important;
+    border-radius: 0 0 var(--r) var(--r) !important;
+    padding: 1rem !important;
+}
+
+/* ─── CONTAINER / CARD ───────────────────────────── */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r-lg) !important;
+    padding: 1.5rem !important;
+}
+
+/* ─── SPINNER ────────────────────────────────────── */
+.stSpinner > div {
+    border-color: var(--accent) transparent transparent !important;
+}
+
+/* ─── STATUS ─────────────────────────────────────── */
+[data-testid="stStatusWidget"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r) !important;
+    font-family: var(--font-body) !important;
+}
+
+/* ─── DIVIDER ────────────────────────────────────── */
+hr {
+    border: none !important;
+    border-top: 1px solid var(--border) !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* ─── IMAGES ─────────────────────────────────────── */
+img {
+    border-radius: var(--r) !important;
+    border: 1px solid var(--border) !important;
+}
+
+/* ─── QR + BIO-ID BADGE ──────────────────────────── */
+.bio-id-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+}
+
+/* ─── SUCCESS ANIMATION ──────────────────────────── */
+.checkmark-circle {
+    width: 120px; height: 120px;
+    position: relative; display: inline-block;
+    margin: 0 auto; text-align: center;
+}
+.checkmark-circle .background {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--success), #38a169);
+    position: absolute;
+    box-shadow: 0 0 40px rgba(72,187,120,0.5);
+}
+.checkmark-circle .checkmark.draw:after {
+    animation-delay: 100ms;
+    animation-duration: 0.8s;
+    animation-timing-function: ease;
+    animation-name: checkmark;
+    transform: scaleX(-1) rotate(135deg);
+}
+.checkmark-circle .checkmark:after {
+    opacity: 1; height: 60px; width: 30px;
+    transform-origin: left top;
+    border-right: 12px solid white;
+    border-top: 12px solid white; content: '';
+    left: 30px; top: 60px; position: absolute;
+}
+@keyframes checkmark {
+    0%   { height: 0; width: 0; opacity: 1; }
+    20%  { height: 0; width: 30px; opacity: 1; }
+    40%  { height: 60px; width: 30px; opacity: 1; }
+    100% { height: 60px; width: 30px; opacity: 1; }
+}
+
+/* ─── SUCCESS PAGE CARD ──────────────────────────── */
+.success-card {
+    background: linear-gradient(145deg, rgba(72,187,120,0.06), rgba(79,209,197,0.06));
+    border: 1px solid rgba(72,187,120,0.2);
+    border-radius: var(--r-lg);
+    padding: 2rem;
+    margin-top: 1.5rem;
+}
+
+.tx-label {
+    font-family: var(--font-head);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.tx-value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.92rem;
+    color: var(--accent);
+    margin-bottom: 16px;
+}
+
+.tx-amount {
+    font-family: var(--font-head);
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: var(--success);
+    letter-spacing: -0.04em;
+    margin: 8px 0 16px;
+}
+
+/* ─── HOME QUICK ACTION CARDS ────────────────────── */
+.action-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 1.5rem;
+    height: 100%;
+    transition: border-color 0.2s ease;
+}
+.action-card:hover { border-color: var(--border-glow); }
+
+.action-card-title {
+    font-family: var(--font-head);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+/* ─── STEP INDICATORS (payment flow) ─────────────── */
+.step-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 0.9rem 1.2rem;
+    margin-bottom: 8px;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.step-num {
+    width: 26px; height: 26px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head);
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #07080d;
+    flex-shrink: 0;
+}
+
+/* ─── SCROLLBAR ──────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4a5568; }
+
+/* ─── HIDE STREAMLIT CHROME ──────────────────────── */
+#MainMenu, footer, header { visibility: hidden; }
+
+/* ─── MARKDOWN ───────────────────────────────────── */
+.stMarkdown p, .stMarkdown li {
+    font-family: var(--font-body) !important;
+    color: var(--text-muted) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.6 !important;
+}
+.stMarkdown strong { color: var(--text) !important; }
+.stMarkdown code {
+    background: rgba(99,179,237,0.1) !important;
+    color: var(--accent) !important;
+    border-radius: 6px !important;
+    padding: 2px 8px !important;
+    font-size: 0.85rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ─── TITLE ───────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="bp-title-wrap">
+    <div class="bp-logo">🛡️</div>
+    <div class="bp-title">Bio<span>Pay</span></div>
+</div>
+<p class="bp-tagline">Biometric-Secured Payment Infrastructure · Zero-Trust Identity Layer</p>
+""", unsafe_allow_html=True)
 
 # ---------------- SESSION STATE ----------------
+if "page" not in st.session_state: st.session_state.page = "landing"
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "user_folder" not in st.session_state: st.session_state.user_folder = ""
 if "qr_scanned_id" not in st.session_state: st.session_state.qr_scanned_id = ""
 if "payment_step" not in st.session_state: st.session_state.payment_step = "input"
 if "last_tx_details" not in st.session_state: st.session_state.last_tx_details = {}
 
-tab_home, tab_reg, tab_list, tab_pay = st.tabs(["🏠 HOME", "👤 REGISTER", "📂 DIRECTORY", "💸 PAYMENT"])
+# ─── TOP NAVBAR LOGIC ─────────────────────────────
+nav_l, nav_r = st.columns([3, 1.2])
+with nav_l:
+    # Clicking the logo resets the view to the Landing Page
+    if st.button("🛡️ BioPay", key="logo_home", use_container_width=False):
+        st.session_state.page = "landing"
+        st.rerun()
 
-# ==================================================
-# TAB 0: HOME
-# ==================================================
-with tab_home:
-    st.markdown("### 📱 Digital Wallet Dashboard")
-    h_col1, h_col2, h_col3 = st.columns(3)
-    with h_col1:
-        if st.button("🔍 OPEN CAMERA SCANNER"):
-            scanned = scan_biopay_qr()
-            if scanned:
-                st.session_state.qr_scanned_id = scanned
-                st.success(f"ID Detected: {scanned}")
-    with h_col2:
-        m_id = st.text_input("Manual Bio-ID Entry", key="m_id_home")
-        if st.button("Save ID"): st.session_state.qr_scanned_id = m_id
-    with h_col3:
-        users = get_all_users()
-        if users:
-            u_check = st.selectbox("Select Profile to Login", users)
-            if st.button("🔓 SHOW BALANCE / LOGIN"):
-                if authenticate(u_check):
-                    st.session_state.current_authenticated_user = u_check
-                    u_data = get_user_data(u_check)
-                    st.metric("Balance", f"₹{u_data.get('balance', 0)}")
-                    st.success(f"Identity Verified: {u_check}")
-                else:
-                    if "current_authenticated_user" in st.session_state:
-                        del st.session_state.current_authenticated_user
-                    st.error("❌ Face Mismatch! Access Denied.")
-
-# ==================================================
-# TAB 1: REGISTER
-# ==================================================
-# with tab_reg:
-#     st.markdown("### ✨ Enrollment")
-#     fn = st.text_input("Full Name")
-#     em = st.text_input("Email")
-#     bn = st.selectbox("Bank", ["SBI", "HDFC", "ICICI", "Axis"])
-#     mb = st.text_input("Mobile")
-#     nc = st.text_input("Native City")
-#     if st.button("🚀 REGISTER"):
-#         register_user(fn, em, mb, nc, bn, {})
-#         train_model()
-#         st.success("User Registered!")
-
-with tab_reg:
-    st.markdown("### ✨ Identity Enrollment")
-    
-    # Row 1: Primary Details
-    col1, col2 = st.columns(2)
-    with col1:
-        fn = st.text_input("Full Name")
-        em = st.text_input("Email")
-        
-        # Bank selectbox with placeholder
-        bank_list = [
-            "Choose your bank", "SBI", "HDFC", "ICICI", "Axis", 
-            "Bank of Baroda", "PNB", "Canara Bank", 
-            "Kotak Mahindra", "IndusInd Bank"
-        ]
-        bn = st.selectbox("Bank Name", options=bank_list, index=0)
-        
-    with col2:
-        mb = st.text_input("Mobile", placeholder="10-digit number")
-        nc = st.text_input("Native City")
-        
-        # Spacer to align checkbox
-        st.write("<div style='height: 28px;'></div>", unsafe_allow_html=True) 
-        agree = st.checkbox("I consent to Biometric Data Capture")
-
-    st.markdown("---")
-    
-    # Row 2: Security Recovery Setup
-    st.markdown("#### 🛡️ Security Recovery Setup")
-    sq_col, sa_col = st.columns([2, 1])
-    
-    with sq_col:
-        sq = st.selectbox("Select a Security Question", [
-            "What was the name of your first school?",
-            "What is your mother's maiden name?",
-            "What was your first pet's name?",
-            "In which city were you born?"
-        ])
-    with sa_col:
-        sa = st.text_input("Secret Answer", type="password", help="Used for account recovery")
-
-    # Data Validation Logic
-    can_reg = False
-    validation_box = st.empty()
-
-    if fn and em and mb and sa and agree:
-        # Check if user details already exist
-        from user_utils import check_user_exists
-        exists, msg = check_user_exists(em, fn, mb)
-        
-        if exists:
-            validation_box.error(f"🛑 {msg}")
-        elif bn == "Choose your bank":
-            validation_box.warning("⚠️ Please select your bank to continue.")
-        elif len(mb) != 10:
-            validation_box.warning("⚠️ Please enter a valid 10-digit mobile number.")
-        else:
-            validation_box.success("✅ Form validated. Ready for capture.")
-            can_reg = True
-
-    # Action Button
-    st.write("")
-    if st.button("🚀 INITIALIZE BIOMETRIC CAPTURE", width="stretch", disabled=not can_reg):
-        with st.status("Initializing Biometric Module...", expanded=True) as status:
-            # 1. Capture 30 face and 20 eye images
-            register_user(fn, em, mb, nc, bn, {sq: sa})
-            
-            # 2. Train the recognizer
-            status.write("Training AI model with new samples...")
-            train_model() 
-            
-            status.update(label="Enrollment Complete!", state="complete", expanded=False)
-        
-        # Display results
-        new_uid = f"{fn.split()[0].lower()}.{mb[-4:]}@{bn.lower()}"
-        st.success(f"Registration Successful! Your Bio-ID is: `{new_uid}`")
-
-
-# ==================================================
-# TAB 2: DIRECTORY
-# ==================================================
-with tab_list:
-    st.markdown("### 📂 Registered Biometric Profiles")
-    users = get_all_users()
-    if not users:
-        st.info("No active profiles found.")
+with nav_r:
+    if not st.session_state.logged_in:
+        # Top-right corner buttons for Guest
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("LOGIN", key="nav_login_btn"):
+                st.session_state.page = "login"
+                st.rerun()
+        with btn_col2:
+            if st.button("REGISTER", key="nav_reg_btn"):
+                st.session_state.page = "register"
+                st.rerun()
     else:
-        for u in users:
-            with st.expander(f"User Profile: {u}"):
-                u_info = get_user_data(u)
-                st.write(f"**Bio-ID:** `{u_info.get('unique_id')}`")
-                if os.path.exists(f"dataset/{u}/qr_code.png"):
-                    st.image(f"dataset/{u}/qr_code.png", width=150)
-                if st.button("🗑️ Delete Profile", key=f"del_{u}"):
-                    delete_user(u); st.rerun()
-
-# ==================================================
-# TAB 3: PAYMENT
-# ==================================================
-# with tab_pay:
-#     if "current_authenticated_user" not in st.session_state:
-#         st.warning("🔒 Verification Required: Please authenticate your face in the **HOME** tab first.")
-#         st.stop()
-
-#     sender_folder = st.session_state.current_authenticated_user
-#     u_info = get_user_data(sender_folder)
-#     sender_bio_id = u_info.get("unique_id", "Not Assigned")
-    
-#     if st.session_state.payment_step == "input":
-#         st.markdown(f"### 💸 Secure Payment Terminal")
-#         st.markdown(f"**Sender Bio-ID:** `{sender_bio_id}`")
-        
-#         col_scan, col_manual = st.columns(2)
-#         with col_scan:
-#             if st.button("🚀 OPEN QR CAMERA"):
-#                 rid = scan_biopay_qr()
-#                 if rid:
-#                     st.session_state.qr_scanned_id = rid
-#                     st.session_state.payment_step = "confirm"; st.rerun()
-
-#         with col_manual:
-#             rid_input = st.text_input("Receiver Bio-ID", value=st.session_state.qr_scanned_id)
-#             if st.button("Proceed to Verify"):
-#                 if rid_input:
-#                     st.session_state.qr_scanned_id = rid_input
-#                     st.session_state.payment_step = "confirm"; st.rerun()
-
-#     elif st.session_state.payment_step == "confirm":
-#         st.markdown("### 🛡️ Confirm Transaction")
-#         current_bal = u_info.get("balance", 0)
-        
-#         st.markdown(f"**Sender ID:** `{sender_bio_id}`")
-#         st.markdown(f"**Receiver ID:** `{st.session_state.qr_scanned_id}`")
-        
-#         with st.container(border=True):
-#             c1, c2 = st.columns(2)
-#             with c1:
-#                 # amount defined here so it is available to the verification block
-#                 amount = st.number_input("Amount (₹)", min_value=1, value=100)
-#             with c2:
-#                 st.metric("Available Balance", f"₹{current_bal}")
-        
-#         if st.button("⚡ VERIFY IMAGE & SEND", disabled=(amount > current_bal)):
-#             status = st.empty()
-#             with status.container():
-#                 st.write("⏳ Step 1: Targeted Face Authentication...")
-#                 # Targeted check: Rahul only matches Rahul
-#                 if authenticate(sender_folder):
-#                     st.write("✅ Identity Confirmed!")
-#                     st.write("⏳ Step 2: Liveness Verification...")
-#                     if blink_verification():
-#                         if update_transaction(sender_folder, amount, st.session_state.qr_scanned_id):
-#                             st.session_state.last_tx_details = {
-#                                 "sender": sender_bio_id,
-#                                 "receiver": st.session_state.qr_scanned_id,
-#                                 "amount": amount
-#                             }
-#                             st.session_state.payment_step = "success"; st.rerun()
-#                     else: st.error("❌ Liveness Failed")
-#                 else: st.error(f"❌ Security Alert: Face does not match account ({sender_folder})")
-
-#     elif st.session_state.payment_step == "success":
-#         tx = st.session_state.last_tx_details
-#         st.markdown("""
-#             <div style="text-align:center; padding:30px;">
-#                 <div class="checkmark-circle"><div class="background"></div><div class="checkmark draw"></div></div>
-#                 <h1 style="color:#2ecc71;">Transaction Successful</h1>
-#             </div>""", unsafe_allow_html=True)
-        
-#         with st.container(border=True):
-#             st.markdown(f"**From Sender ID:** `{tx['sender']}`")
-#             st.markdown(f"**To Receiver ID:** `{tx['receiver']}`")
-#             st.markdown(f"## ₹ {tx['amount']}")
-        
-#         if st.button("DONE"):
-#             st.session_state.payment_step = "input"; st.session_state.qr_scanned_id = ""; st.rerun()
-
-with tab_pay:
-    # 1. AUTHENTICATION CHECK
-    # Ensure the sender has verified their face in the HOME tab before proceeding
-    if "current_authenticated_user" not in st.session_state:
-        st.warning("🔒 Verification Required: Please authenticate your face in the **HOME** tab first.")
-        st.stop()
-
-    sender_folder = st.session_state.current_authenticated_user
-    u_info = get_user_data(sender_folder)
-    sender_bio_id = u_info.get("unique_id", "Not Assigned")
-    
-    # ---------------- STAGE 1: INPUT ----------------
-    if st.session_state.payment_step == "input":
-        st.markdown(f"### 💸 Secure Payment Terminal")
-        st.markdown(f"**Sender Bio-ID:** `{sender_bio_id}`")
-        
-        col_scan, col_manual = st.columns(2)
-        with col_scan:
-            if st.button("🚀 OPEN QR CAMERA"):
-                # Scans receiver's QR code and moves to confirmation
-                rid = scan_biopay_qr()
-                if rid:
-                    st.session_state.qr_scanned_id = rid
-                    st.session_state.payment_step = "confirm"
-                    st.rerun()
-
-        with col_manual:
-            rid_input = st.text_input("Receiver Bio-ID", value=st.session_state.qr_scanned_id)
-            if st.button("Proceed to Verify"):
-                if rid_input:
-                    st.session_state.qr_scanned_id = rid_input
-                    st.session_state.payment_step = "confirm"
-                    st.rerun()
-
-    # ---------------- STAGE 2: CONFIRMATION & AUTH ----------------
-    elif st.session_state.payment_step == "confirm":
-        st.markdown("### 🛡️ Confirm Transaction")
-        current_bal = u_info.get("balance", 0)
-        
-        st.markdown(f"**Sender ID:** `{sender_bio_id}`")
-        st.markdown(f"**Receiver ID:** `{st.session_state.qr_scanned_id}`")
-        
-        with st.container(border=True):
-            c1, c2 = st.columns(2)
-            with c1:
-                amount = st.number_input("Amount (₹)", min_value=1, value=100)
-            with c2:
-                st.metric("Available Balance", f"₹{current_bal}")
-        
-        # Enable payment only if balance is sufficient
-        if st.button("⚡ VERIFY IMAGE & SEND", disabled=(amount > current_bal)):
-            status = st.empty()
-            with status.container():
-                st.write("⏳ Step 1: Targeted Face Authentication...")
-                
-                # Targeted check ensures ONLY the logged-in user can authorize
-                if authenticate(sender_folder):
-                    st.write("✅ Identity Confirmed!")
-                    st.write("⏳ Step 2: Liveness Verification...")
-                    
-                    # Blink detection prevents photo-based spoofing
-                    if blink_verification():
-                        # Executes dual-user balance update and sends SMTP mail alerts
-                        if update_transaction(sender_folder, amount, st.session_state.qr_scanned_id):
-                            st.session_state.last_tx_details = {
-                                "sender": sender_bio_id,
-                                "receiver": st.session_state.qr_scanned_id,
-                                "amount": amount
-                            }
-                            st.session_state.payment_step = "success"
-                            st.rerun()
-                        else:
-                            st.error("❌ Transaction failed (Invalid Receiver or Balance error)")
-                    else: 
-                        st.error("❌ Liveness Failed (Blink not detected)")
-                else: 
-                    st.error(f"❌ Security Alert: Face does not match account ({sender_folder})")
-
-    # ---------------- STAGE 3: SUCCESS ----------------
-    elif st.session_state.payment_step == "success":
-        tx = st.session_state.last_tx_details
-        
-        # GPay-style success tick animation
-        st.markdown("""
-            <div style="text-align:center; padding:30px;">
-                <div class="checkmark-circle"><div class="background"></div><div class="checkmark draw"></div></div>
-                <h1 style="color:#2ecc71;">Transaction Successful</h1>
-            </div>""", unsafe_allow_html=True)
-        
-        with st.container(border=True):
-            st.markdown(f"**From Sender ID:** `{tx['sender']}`")
-            st.markdown(f"**To Receiver ID:** `{tx['receiver']}`")
-            st.markdown(f"<h2 style='color:#2ecc71;'>₹ {tx['amount']}</h2>", unsafe_allow_html=True)
-            st.info("📧 Debit/Credit notifications have been sent to registered emails.")
-
-        if st.button("DONE"):
-            st.session_state.payment_step = "input"
-            st.session_state.qr_scanned_id = ""
+        # Logout button for Logged-in users
+        if st.button("🚪 LOGOUT", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_folder = ""
+            st.session_state.page = "landing"
             st.rerun()
+
+st.divider()
+
+# ─── NAVIGATION GATEKEEPER (GUEST VIEW) ────────────────────────
+if not st.session_state.logged_in:
+    
+    # 1. LANDING / ABOUT PAGE
+    if st.session_state.page == "landing":
+        st.markdown("""
+            <div style="text-align:center; padding: 4rem 1rem;">
+                <h1 style="font-family:'Syne'; font-size:3.5rem; font-weight:800; line-height:1.1; margin-bottom:1.5rem;">
+                    Secure Payments, <span style="color:#63b3ed;">Biometric</span> Trust.
+                </h1>
+                <p style="color:#7b8494; font-size:1.1rem; max-width:800px; margin: 0 auto 3rem;">
+                    BioPay is a next-generation infrastructure for zero-trust identity verification. 
+                    We combine military-grade encryption with facial liveness challenges to eliminate fraud 
+                    and ensure your transactions are 100% spoof-proof.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Feature Highlights
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            st.markdown('<div class="action-card"><h4>🧬 Neural Mapping</h4><p>Proprietary face-matching AI with high-precision biometric accuracy.</p></div>', unsafe_allow_html=True)
+        with col_f2:
+            st.markdown('<div class="action-card"><h4>👁️ Gaze Defense</h4><p>Anti-spoofing challenges that block photos, videos, and deepfake attacks.</p></div>', unsafe_allow_html=True)
+        with col_f3:
+            st.markdown('<div class="action-card"><h4>🛡️ Zero-Trust</h4><p>Decentralized ledger architecture ensures your data remains immutable and private.</p></div>', unsafe_allow_html=True)
+
+# 2. LOGIN PAGE
+    # 2. LOGIN PAGE
+    elif st.session_state.page == "login":
+        st.markdown("""
+        <style>
+        .stApp { background: #07080d !important; }
+        h3 { text-align: center; margin-bottom: 30px; }
+        
+        /* Input Styling to match reference image */
+        .stTextInput input {
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 1px solid #333 !important;
+            border-radius: 0px !important;
+            color: white !important;
+        }
+        .stTextInput input:focus {
+            border-bottom: 2px solid #63b3ed !important;
+            box-shadow: none !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        st.markdown("### Secure User Access")
+        with st.container(border=True):
+            l_em = st.text_input("Email Address", placeholder="Registered Email", key="login_em")
+            l_ps = st.text_input("Password", type="password", placeholder="Enter Password", key="login_ps")
+            
+            if st.button("Verify Identity & Face", key="login_btn"):
+                if l_em and l_ps:
+                    # 1. ADMIN OVERRIDE
+                    if l_em == "vedavyaskodandapani@gmail.com" and l_ps == "Vedavyasvishal@45":
+                        st.session_state.logged_in = True
+                        st.session_state.user_folder = "ADMIN"
+                        st.success("Admin Access Verified")
+                        st.rerun()
+                    
+                    # 2. STANDARD USER AUTHENTICATION
+                    safe_folder = l_em.replace("@", "_").replace(".", "_")
+                    u_data = get_user_data(safe_folder)
+                    
+                    if u_data and u_data.get('password') == l_ps:
+                        # --- AUTOMATIC SCREEN FLASH OVERLAY ---
+                        flash_zone = st.empty()
+                        flash_zone.markdown("""
+                            <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+                                        background-color: white; z-index: 9999; display: flex; 
+                                        justify-content: center; align-items: center;">
+                                <h2 style="color: black; font-family: sans-serif;">🔆 ILLUMINATING FOR SCAN...</h2>
+                            </div>
+                            <style>.stApp { background-color: white !important; }</style>
+                        """, unsafe_allow_html=True)
+
+                        # Trigger Biometric Scan
+                        auth_status, confidence_score = authenticate(safe_folder)
+                        
+                        # Remove Flash Overlay once scan is done
+                        flash_zone.empty()
+
+                        if auth_status:
+                            st.session_state.logged_in = True
+                            st.session_state.user_folder = safe_folder
+                            st.success("Access Granted!")
+                            st.rerun()
+                        
+                        # --- SECONDARY VERIFICATION (MFA) ---
+                        elif 50 <= confidence_score <= 85:
+                            st.warning(f"⚠️ Lighting/Match weak ({int(confidence_score)}%). Answer security challenge.")
+                            
+                            sq_dict = u_data.get('security_questions', {})
+                            if sq_dict:
+                                question = list(sq_dict.keys())[0]
+                                correct_ans = sq_dict[question]
+                                
+                                ans_input = st.text_input(f"Question: {question}", type="password", key="mfa_input")
+                                if st.button("Submit Answer"):
+                                    if ans_input.strip().lower() == correct_ans.strip().lower():
+                                        st.session_state.logged_in = True
+                                        st.session_state.user_folder = safe_folder
+                                        st.success("Knowledge Verified. Access Granted!")
+                                        st.rerun()
+                                    else:
+                                        st.error("Incorrect Answer.")
+                        else:
+                            st.error("Biometric Mismatch")
+                    else:
+                        st.error("Invalid Email or Password")
+                else:
+                    st.warning("Enter both credentials.")
+        
+        if st.button("← Back", key="back_to_landing"):
+            st.session_state.page = "landing"
+            st.rerun()
+            
+    # 3. REGISTER PAGE
+    elif st.session_state.page == "register":
+    # Applying the same clean, centered styling used in Login
+        st.markdown("""
+        <style>
+        .stApp { background: #07080d !important; }
+        h3 { text-align: center; margin-bottom: 30px; }
+        
+        /* Input Styling to match reference image */
+        .stTextInput input {
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 1px solid #333 !important;
+            border-radius: 0px !important;
+            color: white !important;
+        }
+        .stTextInput input:focus {
+            border-bottom: 2px solid #63b3ed !important;
+            box-shadow: none !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### Identity Enrollment")
+        validation_box = st.empty()
+        
+        # ─── SECTION 1: PERSONAL DETAILS ───
+        col1, col2 = st.columns(2)
+        with col1:
+            fn = st.text_input("Full Name", placeholder="e.g. Arjun Sharma", key="reg_fn")
+            em = st.text_input("Email Address", placeholder="you@example.com", key="reg_em")
+            bn = st.selectbox("Bank Name", options=["SBI", "HDFC", "ICICI", "Axis", "PNB", "Kotak"], index=0, key="reg_bn")
+
+        with col2:
+            mb = st.text_input("Mobile Number", placeholder="10-digit number", key="reg_mb")
+            nc = st.text_input("Native City", placeholder="Your home city", key="reg_nc")
+            
+        # ─── SECTION 2: PASSWORD PAIR (Side by Side) ───
+        st.write("<br>", unsafe_allow_html=True)
+        p_col1, p_col2 = st.columns(2)
+        with p_col1:
+            reg_ps = st.text_input("Create Secure Password", type="password", placeholder="••••••••", key="reg_pass_main")
+        with p_col2:
+            conf_ps = st.text_input("Confirm Password", type="password", placeholder="••••••••", key="reg_pass_conf")
+
+        # ─── SECTION 3: CONSENT (Placed Down Here) ───
+        st.write("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        agree = st.checkbox("I consent to biometric data capture & storage", key="reg_agree")
+
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # ─── SECTION 4: RECOVERY ───
+        st.markdown("#### 🛡️ Security Recovery")
+        sq_col, sa_col = st.columns([2, 1])
+        with sq_col:
+            sq = st.selectbox("Security Question", [
+                "What was the name of your first school?", 
+                "What is your mother's maiden name?", 
+                "What was your first pet's name?"
+            ], key="reg_sq")
+        with sa_col:
+            sa = st.text_input("Secret Answer", type="password", placeholder="Your answer", key="reg_sa")
+
+        # ─── LOGIC ───
+        can_reg = False
+        if fn and em and mb and sa and agree and reg_ps and conf_ps:
+            from user_utils import check_user_exists
+            exists, msg = check_user_exists(em, fn, mb)
+            if exists: 
+                validation_box.error(f"⛔ {msg}")
+            elif reg_ps != conf_ps: 
+                validation_box.error("⛔ Passwords do not match.")
+            else:
+                validation_box.success("✓ Identity & Credentials validated.")
+                can_reg = True
+
+        # ─── BUTTONS ───
+        if st.button("🚀 Initialize Biometric Scanner", disabled=not can_reg, key="reg_init_btn", use_container_width=True):
+            with st.status("Registering...") as status:
+                register_user(fn, em, mb, nc, bn, {sq: sa}, reg_ps)
+                train_model()
+                status.update(label="Enrollment Successful!", state="complete")
+            st.success("Registration Complete! Please Login to continue.")
+            
+        if st.button("← Back to About", key="back_reg", use_container_width=True):
+            st.session_state.page = "landing"
+            st.rerun()
+
+# ─── LOGGED IN CONTENT ───────────────────────────
+else:
+    # Check if the logged-in session belongs to the Admin
+    if st.session_state.user_folder == "ADMIN":
+        # --- 1. DATA AGGREGATION ---
+        users = get_all_users()
+        total_balance = 0
+        compliant_count = 0
+        total_users = len(users)
+        all_user_data = []
+
+        for u in users:
+            data = get_user_data(u)
+            if data:
+                bal = data.get('balance', 0)
+                total_balance += bal
+                if bal >= 5000:
+                    compliant_count += 1
+                all_user_data.append(data)
+
+        compliance_rate = (compliant_count / total_users * 100) if total_users > 0 else 0
+
+        # --- 2. HEADER & GOD-VIEW METRICS ---
+        st.markdown("## 🛠️ Admin Command Center")
+        st.info("System Management Mode | Global Infrastructure Oversight")
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total Liquidity", f"₹{total_balance:,}")
+        m2.metric("Compliance Rate", f"{compliance_rate:.1f}%")
+        m3.metric("Registered Nodes", total_users)
+        m4.metric("System Status", "Stable")
+
+        st.divider()
+
+        # --- 3. BULK ACTION & SEARCH ---
+        col_header, col_bulk = st.columns([2, 1])
+        with col_header:
+            st.markdown("### 👤 User Directory")
+        with col_bulk:
+            if st.button("📢 Bulk Warning (Non-Compliant)", type="primary", use_container_width=True):
+                warn_count = 0
+                for u_data in all_user_data:
+                    if u_data.get('balance', 0) < 5000:
+                        # Professional HTML warning template logic
+                        u_email = u_data.get('email')
+                        u_name = u_data.get('full_name')
+                        subj = "URGENT: BioPay Minimum Balance Requirement"
+                        html_warning = f"""
+                        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; max-width: 600px;">
+                            <h2 style="color: #2d3748;">Greetings from BioPay</h2>
+                            <p>Dear <strong>{u_name}</strong>,</p>
+                            <p>Your account is below the required <strong>minimum balance of ₹5,000.00</strong>.</p>
+                            <div style="background-color: #fffaf0; border-left: 4px solid #f6ad55; padding: 15px; margin: 20px 0;">
+                                <p style="margin: 0; color: #975a16;"><strong>Notice:</strong> Please restore your balance within <strong>3 business days</strong>.</p>
+                            </div>
+                            <p style="font-size: 0.8rem; color: #718096;">Greetings,<br><strong>BioPay System Administration</strong></p>
+                        </div>
+                        """
+                        if send_transaction_mail(u_email, subj, html_warning):
+                            warn_count += 1
+                st.toast(f"Broadcasted warnings to {warn_count} users.")
+
+        search_query = st.text_input("🔍 Search users by name or email...", placeholder="e.g. Vedavyas")
+
+        # --- 4. USER MANAGEMENT LIST ---
+        for u_data in all_user_data:
+            u_email = u_data.get('email')
+            u_name = u_data.get('full_name')
+            u_id = u_data.get('unique_id')
+            u_bal = u_data.get('balance', 0)
+
+            # Filter logic
+            if search_query.lower() not in u_name.lower() and search_query.lower() not in u_email.lower():
+                continue
+
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([2.5, 1, 1])
+                
+                with c1:
+                    st.markdown(f"**{u_name}**")
+                    st.caption(f"ID: `{u_id}` | Email: {u_email}")
+                
+                with c2:
+                    color = "#48bb78" if u_bal >= 5000 else "#fc8181"
+                    st.markdown(f"<p style='color:#7b8494; font-size:0.75rem; margin-bottom:0;'>BALANCE</p><h4 style='color:{color}; margin-top:0;'>₹{u_bal:,}</h4>", unsafe_allow_html=True)
+                
+                with c3:
+                    st.write("<div style='height:15px'></div>", unsafe_allow_html=True)
+                    if st.button("⚠️ Send Warning", key=f"warn_btn_{u_id}", use_container_width=True):
+                        subj = "URGENT: BioPay Minimum Balance Requirement"
+                        html_warning = f"""
+                        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; max-width: 600px;">
+                            <h2 style="color: #2d3748;">Greetings from BioPay</h2>
+                            <p>Dear <strong>{u_name}</strong>,</p>
+                            <p>We noticed your account is below the required <strong>minimum balance of ₹5,000.00</strong>.</p>
+                            <div style="background-color: #fffaf0; border-left: 4px solid #f6ad55; padding: 15px; margin: 20px 0;">
+                                <p style="margin: 0; color: #975a16;"><strong>Notice:</strong> Please restore your balance within <strong>3 business days</strong>.</p>
+                            </div>
+                            <p style="font-size: 0.8rem; color: #718096;">Greetings,<br><strong>BioPay System Administration</strong></p>
+                        </div>
+                        """
+                        if send_transaction_mail(u_email, subj, html_warning):
+                            st.success(f"Warning dispatched to {u_name}")
+                        else:
+                            st.error("Mail server error.")
+    else:
+        # STANDARD MEMBER VIEW
+        tab_home, tab_pay, tab_list = st.tabs(["🏠 Home", "💸 Payment", "📂 People"])
+        st.divider()
+        
+        # ... (Include your Home, Payment, and List tab logic below as normal)
+        with tab_home:
+            # Fetch the data for the SPECIFIC user who logged in
+            user_folder = st.session_state.user_folder
+            u_data = get_user_data(user_folder)
+            
+            if u_data:
+                st.markdown(f"### Welcome back, {u_data.get('full_name', 'User')}!")
+                
+                # ─── TOP METRICS ROW ───
+                h_col1, h_col2, h_col3 = st.columns(3)
+
+                with h_col1:
+                    st.markdown('<div class="action-card"><div class="action-card-title">👛 My Wallet</div>', unsafe_allow_html=True)
+                    st.metric("Available Balance", f"₹ {u_data.get('balance', 0)}")
+                    st.caption("Last updated: Real-time")
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                with h_col2:
+                    st.markdown('<div class="action-card"><div class="action-card-title">🆔 My Bio-ID</div>', unsafe_allow_html=True)
+                    st.code(u_data.get('unique_id', 'Not Assigned'), language=None)
+                    st.caption("Use this ID for manual transfers")
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                with h_col3:
+                    st.markdown('<div class="action-card"><div class="action-card-title">📱 Receive Money</div>', unsafe_allow_html=True)
+                    qr_path = f"dataset/{user_folder}/qr_code.png"
+                    if os.path.exists(qr_path):
+                        st.image(qr_path, width=120)
+                    else:
+                        st.warning("QR Code not found.")
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                st.divider()
+
+                # ─── QUICK ACTIONS ROW ───
+                st.markdown("#### Quick Payment Tools")
+                q_col1, q_col2 = st.columns(2)
+
+                with q_col1:
+                    st.markdown('<div class="action-card"><div class="action-card-title">📷 QR Scanner</div>', unsafe_allow_html=True)
+                    if st.button("🚀 Open Camera Scanner", key="home_qr_scan"):
+                        scanned = scan_biopay_qr()
+                        if scanned:
+                            st.session_state.qr_scanned_id = scanned
+                            st.session_state.payment_step = "confirm"
+                            st.rerun() 
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                with q_col2:
+                    st.markdown('<div class="action-card"><div class="action-card-title">⌨️ Manual Entry</div>', unsafe_allow_html=True)
+                    m_id = st.text_input("Enter Receiver Bio-ID", key="home_manual_id", 
+                                        label_visibility="collapsed", placeholder="Enter Receiver's Bio-ID")
+                    if st.button("Set Receiver", key="home_save_id"):
+                        if m_id:
+                            st.session_state.qr_scanned_id = m_id
+                            st.success(f"Receiver set to: {m_id}")
+                    st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.error("Error loading user profile. Please try logging in again.")
+
+        with tab_pay:
+        # ─── AUTH GATE ───
+            if not st.session_state.logged_in:
+                st.markdown("""
+                <div style="text-align:center; padding: 3rem 1rem;">
+                    <div style="font-size:3rem; margin-bottom:1rem;">🔒</div>
+                    <h3 style="color:#e8ecf4; font-family:'Syne',sans-serif; margin-bottom:0.5rem;">Access Restricted</h3>
+                    <p style="color:#7b8494; font-size:0.9rem;">Please <strong>Login</strong> with your credentials and face identity to enable payments.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.stop()
+
+            # Set the sender folder to the logged-in user automatically
+            sender_folder = st.session_state.user_folder
+            u_info = get_user_data(sender_folder)
+            sender_bio_id = u_info.get("unique_id", "Not Assigned")
+
+            # ─── STAGE 1: INPUT ──────────────────────────────
+            if st.session_state.payment_step == "input":
+                st.markdown("### Secure Payment Terminal")
+
+                st.markdown(f"**Authenticated Sender**")
+                st.markdown(f'<div class="bio-id-badge">🆔 {sender_bio_id}</div>', unsafe_allow_html=True)
+                st.write("")
+
+                col_scan, col_manual = st.columns(2)
+                with col_scan:
+                    st.markdown('<div class="action-card"><div class="action-card-title">📷 Scan Receiver QR</div>', unsafe_allow_html=True)
+                    if st.button("Open QR Camera", key="qr_pay"):
+                        rid = scan_biopay_qr()
+                        if rid:
+                            st.session_state.qr_scanned_id = rid
+                            st.session_state.payment_step = "confirm"
+                            st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                with col_manual:
+                    st.markdown('<div class="action-card"><div class="action-card-title">⌨️ Enter Receiver Bio-ID</div>', unsafe_allow_html=True)
+                    rid_input = st.text_input("Receiver Bio-ID", value=st.session_state.qr_scanned_id,
+                                            label_visibility="collapsed", placeholder="Receiver's Bio-ID")
+                    if st.button("Proceed to Confirm", key="proceed_pay"):
+                        if rid_input:
+                            st.session_state.qr_scanned_id = rid_input
+                            st.session_state.payment_step = "confirm"
+                            st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+            # ─── STAGE 2: CONFIRM & AUTH ──────────────────────
+            elif st.session_state.payment_step == "confirm":
+                st.markdown("### Transaction Authorization")
+                current_bal = u_info.get("balance", 0)
+
+                col_info, col_bal = st.columns([3, 1])
+                with col_info:
+                    st.markdown(f"""
+                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1rem;">
+                        <div class="tx-label">From</div>
+                        <div class="tx-value">{sender_bio_id}</div>
+                        <div class="tx-label">To</div>
+                        <div class="tx-value">{st.session_state.qr_scanned_id}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col_bal:
+                    st.metric("Available", f"₹{current_bal}")
+
+                with st.container(border=True):
+                    amount = st.number_input("Transfer Amount (₹)", min_value=1, value=100)
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 🔐 Security Checks")
+                st.markdown("""
+                <div class="step-row"><div class="step-num">1</div>Biometric face authentication</div>
+                <div class="step-row"><div class="step-num">2</div>Randomized gaze liveness challenge</div>
+                <div class="step-row"><div class="step-num">3</div>ML anomaly & risk scoring</div>
+                """, unsafe_allow_html=True)
+                st.write("")
+
+                if st.button("⚡ Verify Identity & Authorize", disabled=(amount > current_bal)):
+                    # --- 1. AUTOMATIC FLASH FOR PAYMENT ---
+                    pay_flash = st.empty()
+                    pay_flash.markdown("""
+                        <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+                                    background-color: white; z-index: 9999; display: flex; 
+                                    justify-content: center; align-items: center;">
+                            <h2 style="color: black; font-family: sans-serif;">🔒 SECURE SCANNING...</h2>
+                        </div>
+                        <style>.stApp { background-color: white !important; }</style>
+                    """, unsafe_allow_html=True)
+
+                    # --- 2. RUN AUTHENTICATION WITH SCORE ---
+                    # Returns (True/False, confidence_score)
+                    auth_status, confidence_score = authenticate(sender_folder)
+                    
+                    # Remove Flash
+                    pay_flash.empty()
+
+                    proceed_tx = False
+
+                    if auth_status:
+                        st.success("✅ Identity Confirmed")
+                        # Proceed to Liveness if primary face matches
+                        if challenge_response_auth():
+                            st.success("✅ Liveness Verified")
+                            proceed_tx = True
+                        else:
+                            st.error("❌ Liveness Check Failed")
+                    
+                    # --- 3. LOW LIGHT / WEAK MATCH FALLBACK ---
+                    elif 50 <= confidence_score <= 85:
+                        st.warning(f"⚠️ Poor lighting detected ({int(confidence_score)}%). Verification required.")
+                        sq_dict = u_info.get("security_questions", {})
+                        if sq_dict:
+                            question = list(sq_dict.keys())[0]
+                            correct_ans = sq_dict[question]
+                            ans_input = st.text_input(f"Question: {question}", type="password", key="pay_mfa")
+                            if st.button("Authorize with Secret Answer"):
+                                if ans_input.strip().lower() == correct_ans.strip().lower():
+                                    st.success("✅ Knowledge Verified")
+                                    proceed_tx = True
+                                else:
+                                    st.error("❌ Incorrect Answer")
+                    else:
+                        st.error("❌ Biometric Mismatch")
+
+                    # --- 4. PROCESS TRANSACTION & SEND PROFESSIONAL EMAIL ---
+                    if proceed_tx:
+                        with st.spinner("Processing Secure Ledger Update..."):
+                            # This one call now does EVERYTHING (History, Balance, Hash, and both Mails)
+                            if update_transaction(sender_folder, amount, st.session_state.qr_scanned_id):
+                                
+                                # Get updated data for the success screen UI
+                                updated_info = get_user_data(sender_folder)
+                                real_hash = updated_info['transactions'][-1]['hash']
+
+                                st.session_state.last_tx_details = {
+                                    "sender": sender_bio_id,
+                                    "receiver": st.session_state.qr_scanned_id,
+                                    "amount": amount,
+                                    "hash": real_hash
+                                }
+                                st.session_state.payment_step = "success"
+                                st.rerun()
+            # ─── STAGE 3: SUCCESS ────────────────────────────
+            elif st.session_state.payment_step == "success":
+                tx = st.session_state.last_tx_details
+
+                st.markdown("""
+                <div style="text-align:center; padding: 2.5rem 1rem 1.5rem;">
+                    <div class="checkmark-circle" style="margin: 0 auto 1.5rem;">
+                        <div class="background"></div>
+                        <div class="checkmark draw"></div>
+                    </div>
+                    <h2 style="font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800;
+                                color:#48bb78; letter-spacing:-0.03em; margin-bottom:0.4rem;">
+                        Transaction Successful
+                    </h2>
+                    <p style="color:#7b8494; font-size:0.88rem; font-family:'DM Sans',sans-serif;">
+                        Funds transferred securely via BioPay
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="success-card">
+                    <div class="tx-label">From Sender ID</div>
+                    <div class="tx-value">{tx['sender']}</div>
+                    <div class="tx-label">To Receiver ID</div>
+                    <div class="tx-value">{tx['receiver']}</div>
+                    <div class="tx-label">Amount Transferred</div>
+                    <div class="tx-amount">₹ {tx['amount']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.info("📧 Debit/Credit notifications dispatched to registered email addresses.")
+                st.write("")
+
+                if st.button("← Return to Dashboard"):
+                    st.session_state.payment_step = "input"
+                    st.session_state.qr_scanned_id = ""
+                    st.rerun()
+            pass
+
+        with tab_list:
+            # ─── PEOPLE / CONTACTS TAB ───────────────────────────
+            with tab_list:
+                st.markdown("### 📱 Quick Pay")
+                st.caption("Select a verified contact to initiate a secure biometric transfer.")
+                
+                users = get_all_users()
+                
+                if not users:
+                    st.info("No active biometric profiles found.")
+                else:
+                    for u in users:
+                        u_info = get_user_data(u)
+                        if not u_info or u == st.session_state.user_folder:
+                            continue
+
+                        # Clean Professional Card
+                        with st.container():
+                            col_img, col_info, col_btn = st.columns([1, 4, 2])
+                            
+                            with col_img:
+                                # User Initial Circle
+                                initial = u_info.get('full_name', 'U')[0]
+                                st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, #63b3ed, #4fd1c5); 
+                                                width:50px; height:50px; border-radius:50%; 
+                                                display:flex; align-items:center; justify-content:center; 
+                                                color:#07080d; font-weight:bold; font-size:1.2rem; box-shadow: 0 4px 15px rgba(99,179,237,0.3);">
+                                        {initial}
+                                    </div>
+                                """, unsafe_allow_html=True)
+                            
+                            with col_info:
+                                st.markdown(f"**{u_info.get('full_name')}**")
+                                st.markdown(f"<code style='color:#63b3ed; font-size:0.8rem;'>{u_info.get('unique_id')}</code>", unsafe_allow_html=True)
+                            
+                            with col_btn:
+                                if st.button(f"💸 PAY", key=f"pay_btn_{u}"):
+                                    # 1. Store the ID
+                                    st.session_state.qr_scanned_id = u_info.get('unique_id')
+                                    # 2. FORCE NAVIGATION TO PAYMENT TAB
+                                    # Note: This depends on how you named your tabs. 
+                                    # If you are using a radio or selectbox for navigation:
+                                    st.session_state.active_tab = "PAYMENT" 
+                                    st.rerun()
+                            
+                            st.markdown("<hr style='margin:12px 0; border-top: 1px solid rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
+
+            pass

@@ -3,215 +3,41 @@ import shutil
 import cv2
 import numpy as np
 import json
+import hashlib
+import threading
+from datetime import datetime
+from otp_utils import send_transaction_mail  # Ensure this function is in otp_utils.py
 
 # -------------------------------------------------
-# CHECK IF USER DATA ALREADY EXISTS
+# NEW LOGIC: BLOCKCHAIN HASH GENERATOR
 # -------------------------------------------------
-def check_user_exists(email, full_name, mobile):
-    """
-    Scans all registered users to check if the new credentials 
-    already exist in the system.
-    """
-    base_path = "dataset"
-    if not os.path.exists(base_path):
-        return False, ""
-
-    # Iterate through every folder in the dataset
-    for user_folder in os.listdir(base_path):
-        json_path = f"{base_path}/{user_folder}/user.json"
-        
-        if os.path.exists(json_path):
-            with open(json_path, "r") as f:
-                try:
-                    data = json.load(f)
-                    # Check for matches against unique enrollment criteria
-                    if data.get("email") == email:
-                        return True, "Email ID already registered"
-                    if data.get("full_name") == full_name:
-                        return True, "Full Name already exists"
-                    if data.get("mobile") == mobile:
-                        return True, "Mobile Number already exists"
-                except json.JSONDecodeError:
-                    continue
-                    
-    return False, ""
+def generate_block_hash(prev_hash, sender_id, receiver_id, amount, timestamp):
+    """Creates a unique SHA-256 signature for a transaction block."""
+    block_string = f"{prev_hash}{sender_id}{receiver_id}{amount}{timestamp}"
+    return hashlib.sha256(block_string.encode()).hexdigest()
 
 # -------------------------------------------------
 # GET ALL REGISTERED USERS
 # -------------------------------------------------
 def get_all_users():
-    """Returns a list of folder names (sanitized emails) from the dataset."""
-    if not os.path.exists("dataset"):
-        return []
-    return [
-        u for u in os.listdir("dataset")
-        if os.path.isdir(f"dataset/{u}")
-    ]
-
+    if not os.path.exists("dataset"): return []
+    return [u for u in os.listdir("dataset") if os.path.isdir(f"dataset/{u}")]
 
 # -------------------------------------------------
 # READ USER METADATA
 # -------------------------------------------------
-def get_user_data(username):
-    """Fetches full JSON metadata for a specific user folder."""
-    user_file = f"dataset/{username}/user.json"
-    if not os.path.exists(user_file):
-        return None
-
-    with open(user_file, "r") as f:
-        return json.load(f)
-
-
-# -------------------------------------------------
-# UPDATE FAILED ATTEMPTS
-# -------------------------------------------------
-def update_failed_attempts(username, success):
-    """Resets or increments failed login attempts in user metadata."""
-    user_file = f"dataset/{username}/user.json"
-    if not os.path.exists(user_file):
-        return
-
-    with open(user_file, "r") as f:
-        data = json.load(f)
-
-    if success:
-        data["failed_attempts"] = 0
-    else:
-        # Initialize key if it doesn't exist to prevent crashes
-        data["failed_attempts"] = data.get("failed_attempts", 0) + 1
-
-    with open(user_file, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-# -------------------------------------------------
-# UPDATE WALLET BALANCE & TRANSACTIONS
-# -------------------------------------------------
-# def update_transaction(username, amount, receiver_id):
-#     """Updates the user's balance and records the transaction history."""
-#     user_file = f"dataset/{username}/user.json"
-#     if not os.path.exists(user_file):
-#         return False
-
-#     with open(user_file, "r") as f:
-#         data = json.load(f)
-
-#     # Deduct amount from balance
-#     current_balance = data.get("balance", 0)
-#     if current_balance >= amount:
-#         data["balance"] = current_balance - amount
-        
-#         # Log transaction
-#         transaction_entry = {
-#             "to": receiver_id,
-#             "amount": amount,
-#             "timestamp": os.popen('date').read().strip() # Simplified timestamp
-#         }
-        
-#         if "transactions" not in data:
-#             data["transactions"] = []
-#         data["transactions"].append(transaction_entry)
-
-#         with open(user_file, "w") as f:
-#             json.dump(data, f, indent=4)
-#         return True
-    
-#     return False
-
-# import os, shutil, cv2, numpy as np, json
-
-# def get_all_users():
-#     if not os.path.exists("dataset"): return []
-#     return [u for u in os.listdir("dataset") if os.path.isdir(f"dataset/{u}")]
-
-# def get_user_data(username):
-#     path = f"dataset/{username}/user.json"
-#     if not os.path.exists(path): return None
-#     with open(path, "r") as f: return json.load(f)
-
-# def update_transaction(username, amount, receiver_id):
-#     path = f"dataset/{username}/user.json"
-#     data = get_user_data(username)
-#     if not data: return False
-    
-#     curr_bal = float(data.get("balance", 0))
-#     if curr_bal >= amount:
-#         data["balance"] = curr_bal - amount
-#         if "transactions" not in data: data["transactions"] = []
-#         data["transactions"].append({"to": receiver_id, "amount": amount})
-#         with open(path, "w") as f: json.dump(data, f, indent=4)
-#         return True
-#     return False
-
-# def check_user_exists(email, name, mobile):
-#     for u in get_all_users():
-#         d = get_user_data(u)
-#         if d['email'] == email or d['mobile'] == mobile: return True, "User Exists"
-#     return False, ""
-
-# def delete_user(u):
-#     if os.path.exists(f"dataset/{u}"): shutil.rmtree(f"dataset/{u}")
-# # -------------------------------------------------
-# # UPDATE PROFILE PHOTO
-# # -------------------------------------------------
-# def update_profile_photo(username, uploaded_file):
-#     path = f"dataset/{username}/profile.jpg"
-
-#     file_bytes = np.asarray(
-#         bytearray(uploaded_file.read()),
-#         dtype=np.uint8
-#     )
-
-#     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-#     if img is not None:
-#         cv2.imwrite(path, img)
-
-
-# # -------------------------------------------------
-# # DELETE USER COMPLETELY
-# # -------------------------------------------------
-# def delete_user(username):
-#     """Removes all files, photos, and QR codes associated with the user."""
-#     path = f"dataset/{username}"
-#     if os.path.exists(path):
-#         shutil.rmtree(path)
-
-
-# # -------------------------------------------------
-# # RENAME USER (FOLDER LEVEL)
-# # -------------------------------------------------
-# def rename_user(old_name, new_name):
-#     old_path = f"dataset/{old_name}"
-#     new_path = f"dataset/{new_name}"
-
-#     if not os.path.exists(old_path) or os.path.exists(new_path):
-#         return False
-
-#     os.rename(old_path, new_path)
-#     return True
-
-import os
-import shutil
-import cv2
-import numpy as np
-import json
-from otp_utils import send_transaction_mail  # Ensure this function is in otp_utils.py
-
-def get_all_users():
-    if not os.path.exists("dataset"): return []
-    return [u for u in os.listdir("dataset") if os.path.isdir(f"dataset/{u}")]
-
 def get_user_data(username):
     path = f"dataset/{username}/user.json"
     if not os.path.exists(path): return None
     with open(path, "r") as f: return json.load(f)
 
 # -------------------------------------------------
-# DUAL-USER TRANSACTION LOGIC
+# DUAL-USER TRANSACTION LOGIC (WITH HASHING)
 # -------------------------------------------------
 def update_transaction(username, amount, receiver_id):
     """
-    Subtracts money from sender, adds to receiver, and sends dual emails.
+    Subtracts money from sender, adds to receiver, 
+    generates a Blockchain Hash, and sends high-end HTML dual emails.
     """
     sender_path = f"dataset/{username}/user.json"
     sender_data = get_user_data(username)
@@ -236,17 +62,29 @@ def update_transaction(username, amount, receiver_id):
         print("Receiver ID not found in system.")
         return False
 
-    # 3. Update Sender Balance
+    # --- BLOCKCHAIN LOGIC START ---
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sender_history = sender_data.get("transactions", [])
+    prev_hash_sender = sender_history[-1]['hash'] if sender_history and 'hash' in sender_history[-1] else "00000000000000000000"
+    
+    # Generate new unique hash
+    tx_hash = generate_block_hash(prev_hash_sender, sender_data.get("unique_id"), receiver_id, amount, timestamp)
+    # --- BLOCKCHAIN LOGIC END ---
+
+    # 3. Update Sender Balance & History
     sender_data["balance"] = curr_sender_bal - amount
     if "transactions" not in sender_data: sender_data["transactions"] = []
     sender_data["transactions"].append({
         "type": "Debit",
         "to": receiver_id, 
         "amount": amount,
+        "timestamp": timestamp,
+        "prev_hash": prev_hash_sender,
+        "hash": tx_hash,
         "status": "Success"
     })
 
-    # 4. Update Receiver Balance
+    # 4. Update Receiver Balance & History
     curr_receiver_bal = float(receiver_data.get("balance", 0))
     receiver_data["balance"] = curr_receiver_bal + amount
     if "transactions" not in receiver_data: receiver_data["transactions"] = []
@@ -254,6 +92,8 @@ def update_transaction(username, amount, receiver_id):
         "type": "Credit",
         "from": sender_data.get("unique_id"), 
         "amount": amount,
+        "timestamp": timestamp,
+        "hash": tx_hash,
         "status": "Success"
     })
 
@@ -263,22 +103,54 @@ def update_transaction(username, amount, receiver_id):
     with open(f"dataset/{receiver_folder}/user.json", "w") as f: 
         json.dump(receiver_data, f, indent=4)
 
-    # 6. Send Dual Email Notifications
-    # To Sender
-    send_transaction_mail(
-        sender_data['email'], 
-        "Debit Alert: BioPay Transaction", 
-        f"Hello {sender_data['full_name']},\n\n₹{amount} has been deducted from your account for payment to {receiver_id}.\nUpdated Balance: ₹{sender_data['balance']}"
-    )
-    # To Receiver
-    send_transaction_mail(
-        receiver_data['email'], 
-        "Credit Alert: BioPay Transaction", 
-        f"Hello {receiver_data['full_name']},\n\n₹{amount} has been credited to your account from {sender_data.get('unique_id')}.\nUpdated Balance: ₹{receiver_data['balance']}"
-    )
+    # ---------------------------------------------------------
+    # 6. SEND DUAL EMAIL NOTIFICATIONS (PROFESSIONAL UI)
+    # ---------------------------------------------------------
+
+    # A. DEBIT EMAIL (RED THEME)
+    html_debit = f"""
+    <div style="font-family: sans-serif; padding: 25px; border: 1px solid #e2e8f0; border-radius: 15px; max-width: 600px; background-color: #ffffff;">
+        <div style="background-color: #fc8181; padding: 15px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+            <h2 style="margin:0; letter-spacing: 1px; text-transform: uppercase; font-size: 16px;">Debit Alert</h2>
+        </div>
+        <div style="background-color: #f7fafc; padding: 25px; border: 1px solid #edf2f7; border-top: none; border-radius: 0 0 12px 12px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 10px 0; color: #718096;">Amount Debited</td><td style="text-align:right; color:#e53e3e; font-weight:bold; font-size: 1.4rem;">- ₹{amount:,}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">Sent To</td><td style="text-align:right; font-weight: 500;">{receiver_id}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">Blockchain Hash</td><td style="text-align:right; font-family:monospace; font-size: 0.75rem; color: #4a5568;">{tx_hash[:20]}...</td></tr>
+                <tr><td style="padding: 15px 0 0 0; border-top: 1px solid #e2e8f0; color: #2d3748; font-weight:bold;">Remaining Balance</td><td style="text-align:right; padding: 15px 0 0 0; font-weight:bold; color: #2d3748;">₹{sender_data['balance']:,}</td></tr>
+            </table>
+        </div>
+        <p style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 20px;">Verified via 🛡️ BioPay Biometric Identity Layer</p>
+    </div>
+    """
+
+    # B. CREDIT EMAIL (GREEN THEME)
+    html_credit = f"""
+    <div style="font-family: sans-serif; padding: 25px; border: 1px solid #e2e8f0; border-radius: 15px; max-width: 600px; background-color: #ffffff;">
+        <div style="background-color: #48bb78; padding: 15px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+            <h2 style="margin:0; letter-spacing: 1px; text-transform: uppercase; font-size: 16px;">Credit Alert</h2>
+        </div>
+        <div style="background-color: #f7fafc; padding: 25px; border: 1px solid #edf2f7; border-top: none; border-radius: 0 0 12px 12px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 10px 0; color: #718096;">Amount Received</td><td style="text-align:right; color:#48bb78; font-weight:bold; font-size: 1.4rem;">+ ₹{amount:,}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">From Sender</td><td style="text-align:right; font-weight: 500;">{sender_data.get('unique_id')}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">Blockchain Hash</td><td style="text-align:right; font-family:monospace; font-size: 0.75rem; color: #4a5568;">{tx_hash[:20]}...</td></tr>
+                <tr><td style="padding: 15px 0 0 0; border-top: 1px solid #e2e8f0; color: #2d3748; font-weight:bold;">Updated Balance</td><td style="text-align:right; padding: 15px 0 0 0; font-weight:bold; color: #2d3748;">₹{receiver_data['balance']:,}</td></tr>
+            </table>
+        </div>
+        <p style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 20px;">Received via 🛡️ BioPay Secure Infrastructure</p>
+    </div>
+    """
+
+    # Send Mails
+    send_transaction_mail(sender_data['email'], "Debit Alert: BioPay Transaction Successful", html_debit)
+    send_transaction_mail(receiver_data['email'], "Credit Alert: BioPay Payment Received", html_credit)
 
     return True
-
+# -------------------------------------------------
+# CHECK IF USER EXISTS
+# -------------------------------------------------
 def check_user_exists(email, name, mobile):
     for u in get_all_users():
         d = get_user_data(u)
@@ -287,6 +159,27 @@ def check_user_exists(email, name, mobile):
                 return True, "User with this Email or Mobile already exists."
     return False, ""
 
+# -------------------------------------------------
+# UPDATE FAILED ATTEMPTS
+# -------------------------------------------------
+def update_failed_attempts(username, success):
+    user_file = f"dataset/{username}/user.json"
+    if not os.path.exists(user_file): return
+
+    with open(user_file, "r") as f:
+        data = json.load(f)
+
+    if success:
+        data["failed_attempts"] = 0
+    else:
+        data["failed_attempts"] = data.get("failed_attempts", 0) + 1
+
+    with open(user_file, "w") as f:
+        json.dump(data, f, indent=4)
+
+# -------------------------------------------------
+# PHOTO & PROFILE MANAGEMENT
+# -------------------------------------------------
 def update_profile_photo(username, uploaded_file):
     path = f"dataset/{username}/profile.jpg"
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -295,7 +188,6 @@ def update_profile_photo(username, uploaded_file):
         cv2.imwrite(path, img)
 
 def delete_user(username):
-    """Removes all files, photos, and QR codes associated with the user."""
     path = f"dataset/{username}"
     if os.path.exists(path):
         shutil.rmtree(path)
@@ -307,3 +199,26 @@ def rename_user(old_name, new_name):
         return False
     os.rename(old_path, new_path)
     return True
+
+def update_user_balance(target_email, new_balance):
+    base_path = r"G:\biometric_payment_system\dataset"
+    
+    # 1. Look through EVERY folder in the dataset
+    for folder_name in os.listdir(base_path):
+        json_path = os.path.join(base_path, folder_name, "profile.json")
+        
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, 'r') as f:
+                    data = json.load(f)
+                
+                # 2. Check if the email inside THIS file matches the user we want to fine
+                if data.get('email') == target_email:
+                    data['balance'] = new_balance
+                    with open(json_path, 'w') as f:
+                        json.dump(data, f, indent=4)
+                    return True # FOUND AND UPDATED
+            except:
+                continue
+                
+    return False # Truly not found anywhere
