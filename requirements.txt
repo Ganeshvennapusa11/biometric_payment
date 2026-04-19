@@ -6,3 +6,5 @@ av
 mediapipe
 geocoder
 plotly
+qrcode
+cryptography
