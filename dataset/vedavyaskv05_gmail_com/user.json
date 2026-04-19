@@ -1,7 +1,7 @@
 {
     "full_name": "Vedavyas Vishal",
     "unique_id": "vedavyas.1543@axis",
-    "balance": 3800.0,
+    "balance": 3600.0,
     "email": "vedavyaskv05@gmail.com",
     "password": "Vishalkv@45",
     "failed_attempts": 0,
@@ -115,6 +115,22 @@
             "timestamp": "2026-04-18 21:41:04",
             "prev_hash": "df32993295714a0e0c302868b5e9935b798242c17d52bf7839d4465949eb8c3c",
             "hash": "e405b0874196df50b869f085515b87c7b34427d2bea86d560ebd44b72c0aeaf8",
+            "status": "Success"
+        },
+        {
+            "type": "Debit",
+            "to": "rohit.2463@axis",
+            "amount": 100,
+            "timestamp": "2026-04-19 22:26:07",
+            "hash": "5bdc210e339dbe2e1687326cb229cacaf79fc32ed35e2df90964f08e71a6f3f2",
+            "status": "Success"
+        },
+        {
+            "type": "Debit",
+            "to": "rohit.2463@axis",
+            "amount": 100,
+            "timestamp": "2026-04-19 22:27:39",
+            "hash": "3e7739803a784813662e7ee4b880748a0462af38ee69a7ae503290435e3f7b2a",
             "status": "Success"
         }
     ]

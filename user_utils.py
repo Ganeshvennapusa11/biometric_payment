@@ -323,13 +323,52 @@ def update_transaction(username, amount, receiver_id):
     with open(os.path.join(DATASET_DIR, receiver_folder, "user.json"), "w") as f: 
         json.dump(receiver_data, f, indent=4)
 
-    # 6. Emails (HTML logic remains as you wrote it)
-    # ... [Keep your html_debit and html_credit code here] ...
-    send_transaction_mail(sender_data['email'], "Debit Alert", html_debit)
-    send_transaction_mail(receiver_data['email'], "Credit Alert", html_credit)
+    # ---------------------------------------------------------
+    # 6. HTML TEMPLATES (THE FIX IS HERE)
+    # ---------------------------------------------------------
+    html_debit = f"""
+    <div style="font-family: sans-serif; padding: 25px; border: 1px solid #e2e8f0; border-radius: 15px; max-width: 600px; background-color: #ffffff;">
+        <div style="background-color: #fc8181; padding: 15px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+            <h2 style="margin:0; letter-spacing: 1px; text-transform: uppercase; font-size: 16px;">Debit Alert</h2>
+        </div>
+        <div style="background-color: #f7fafc; padding: 25px; border: 1px solid #edf2f7; border-top: none; border-radius: 0 0 12px 12px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 10px 0; color: #718096;">Amount Debited</td><td style="text-align:right; color:#e53e3e; font-weight:bold; font-size: 1.4rem;">- ₹{amount:,}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">Sent To</td><td style="text-align:right; font-weight: 500;">{receiver_id}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">Blockchain Hash</td><td style="text-align:right; font-family:monospace; font-size: 0.75rem; color: #4a5568;">{tx_hash[:20]}...</td></tr>
+                <tr><td style="padding: 15px 0 0 0; border-top: 1px solid #e2e8f0; color: #2d3748; font-weight:bold;">Remaining Balance</td><td style="text-align:right; padding: 15px 0 0 0; font-weight:bold; color: #2d3748;">₹{sender_data['balance']:,}</td></tr>
+            </table>
+        </div>
+        <p style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 20px;">Verified via 🛡️ BioPay Biometric Identity Layer</p>
+    </div>
+    """
+
+    # B. CREDIT EMAIL (GREEN THEME)
+    html_credit = f"""
+    <div style="font-family: sans-serif; padding: 25px; border: 1px solid #e2e8f0; border-radius: 15px; max-width: 600px; background-color: #ffffff;">
+        <div style="background-color: #48bb78; padding: 15px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+            <h2 style="margin:0; letter-spacing: 1px; text-transform: uppercase; font-size: 16px;">Credit Alert</h2>
+        </div>
+        <div style="background-color: #f7fafc; padding: 25px; border: 1px solid #edf2f7; border-top: none; border-radius: 0 0 12px 12px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 10px 0; color: #718096;">Amount Received</td><td style="text-align:right; color:#48bb78; font-weight:bold; font-size: 1.4rem;">+ ₹{amount:,}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">From Sender</td><td style="text-align:right; font-weight: 500;">{sender_data.get('unique_id')}</td></tr>
+                <tr><td style="padding: 10px 0; color: #718096;">Blockchain Hash</td><td style="text-align:right; font-family:monospace; font-size: 0.75rem; color: #4a5568;">{tx_hash[:20]}...</td></tr>
+                <tr><td style="padding: 15px 0 0 0; border-top: 1px solid #e2e8f0; color: #2d3748; font-weight:bold;">Updated Balance</td><td style="text-align:right; padding: 15px 0 0 0; font-weight:bold; color: #2d3748;">₹{receiver_data['balance']:,}</td></tr>
+            </table>
+        </div>
+        <p style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 20px;">Received via 🛡️ BioPay Secure Infrastructure</p>
+    </div>
+    """
+
+    # Send Mails
+    try:
+        send_transaction_mail(sender_data['email'], "Debit Alert: BioPay Success", html_debit)
+        send_transaction_mail(receiver_data['email'], "Credit Alert: BioPay Success", html_credit)
+    except Exception as e:
+        print(f"Mail Error: {e}")
 
     return True
-
 # -------------------------------------------------
 # PROFILE & UTILITIES
 # -------------------------------------------------
@@ -370,3 +409,18 @@ def update_user_balance(target_email, new_balance):
                     return True
             except: continue
     return False
+
+def rename_user(old_name, new_name):
+    """Renames a user folder while maintaining path compatibility."""
+    old_path = os.path.join(DATASET_DIR, old_name)
+    new_path = os.path.join(DATASET_DIR, new_name)
+    
+    if not os.path.exists(old_path) or os.path.exists(new_path):
+        return False
+        
+    try:
+        os.rename(old_path, new_path)
+        return True
+    except Exception as e:
+        print(f"Rename error: {e}")
+        return False
