@@ -8,7 +8,7 @@
     "security_questions": {
         "What was the name of your first school?": "SSSVV"
     },
-    "balance": 4100.0,
+    "balance": 4200.0,
     "created_on": "2026-02-02 12:10:32",
     "transactions": [
         {
@@ -21,6 +21,14 @@
             "type": "Credit",
             "from": "vedavyas.1543@sbi",
             "amount": 100,
+            "status": "Success"
+        },
+        {
+            "type": "Credit",
+            "from": "khan.4374@sbi",
+            "amount": 100,
+            "timestamp": "2026-04-20 11:43:22",
+            "hash": "c78f94cb985fdd20ece193085b0cc88fbcb1afd20aa5a5393028c9d59102d377",
             "status": "Success"
         }
     ]

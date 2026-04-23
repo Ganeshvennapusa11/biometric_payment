@@ -1,0 +1,13 @@
+{
+    "full_name": "karan",
+    "unique_id": "karan.4374@sbi",
+    "balance": 5000,
+    "email": "karan@gmail.com",
+    "password": "192005",
+    "personal_pin_hash": "a20a2b7bb0842d5cf8a0c06c626421fd51ec103925c1819a51271f2779afa730",
+    "failed_attempts": 0,
+    "security_questions": {
+        "What was the name of your first school?": "timpany"
+    },
+    "transactions": []
+}

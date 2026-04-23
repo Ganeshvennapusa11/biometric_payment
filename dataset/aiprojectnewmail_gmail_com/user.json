@@ -1,7 +1,7 @@
 {
     "full_name": "aiiii",
     "unique_id": "aiiii.5432@pnb",
-    "balance": 5100.0,
+    "balance": 5200.0,
     "email": "aiprojectnewmail@gmail.com",
     "mobile": "1234565432",
     "bank": "PNB",
@@ -15,6 +15,14 @@
             "amount": 100,
             "timestamp": "2026-04-18 21:41:04",
             "hash": "e405b0874196df50b869f085515b87c7b34427d2bea86d560ebd44b72c0aeaf8",
+            "status": "Success"
+        },
+        {
+            "type": "Credit",
+            "from": "vedavyas.1543@axis",
+            "amount": 100,
+            "timestamp": "2026-04-23 22:11:10",
+            "hash": "a0ef75421a551b151e52afb7cc2e0e384d83bf6c7df8216184138a4953cc97b6",
             "status": "Success"
         }
     ]

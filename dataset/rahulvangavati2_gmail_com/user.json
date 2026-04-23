@@ -1,0 +1,22 @@
+{
+    "full_name": "khan",
+    "unique_id": "khan.4374@sbi",
+    "balance": 4900.0,
+    "email": "rahulvangavati2@gmail.com",
+    "password": "192005",
+    "personal_pin_hash": "a20a2b7bb0842d5cf8a0c06c626421fd51ec103925c1819a51271f2779afa730",
+    "failed_attempts": 0,
+    "security_questions": {
+        "What was the name of your first school?": "timpany"
+    },
+    "transactions": [
+        {
+            "type": "Debit",
+            "to": "rahul.4375@sbi",
+            "amount": 100,
+            "timestamp": "2026-04-20 11:43:22",
+            "hash": "c78f94cb985fdd20ece193085b0cc88fbcb1afd20aa5a5393028c9d59102d377",
+            "status": "Success"
+        }
+    ]
+}

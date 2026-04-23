@@ -424,3 +424,54 @@ def rename_user(old_name, new_name):
     except Exception as e:
         print(f"Rename error: {e}")
         return False
+    
+# ─── PIN UTILITIES (append these to your existing user_utils.py) ──────────────
+#
+# Add the two functions below to the bottom of your user_utils.py file.
+# No existing functions need to be changed.
+# ──────────────────────────────────────────────────────────────────────────────
+
+import hashlib
+
+
+def verify_user_pin(sender_folder: str, entered_pin: str) -> bool:
+    """
+    Verify a 4-digit PIN against the stored SHA-256 hash.
+
+    Parameters
+    ----------
+    sender_folder : str
+        The folder key for the user (email with @ and . replaced by _).
+    entered_pin : str
+        The plain-text PIN the user typed in the UI.
+
+    Returns
+    -------
+    bool  True if PIN matches, False otherwise.
+    """
+    import json, os
+    user_file = f"dataset/{sender_folder}/user.json"
+    if not os.path.exists(user_file):
+        return False
+
+    with open(user_file, "r") as f:
+        data = json.load(f)
+
+    stored_hash = data.get("personal_pin_hash", "")
+    if not stored_hash:
+        # User registered before PIN feature was added — treat as no PIN set
+        return False
+
+    entered_hash = hashlib.sha256(entered_pin.encode()).hexdigest()
+    return entered_hash == stored_hash
+
+
+def has_pin_registered(sender_folder: str) -> bool:
+    """Return True if the user has a PIN hash stored."""
+    import json, os
+    user_file = f"dataset/{sender_folder}/user.json"
+    if not os.path.exists(user_file):
+        return False
+    with open(user_file, "r") as f:
+        data = json.load(f)
+    return bool(data.get("personal_pin_hash", ""))

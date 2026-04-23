@@ -173,6 +173,80 @@
 
 #     return False, 999
 
+# import cv2
+# import pickle
+# import os
+# import time
+# import numpy as np
+# import streamlit as st
+# import av
+# from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+
+# # --- PATHING ---
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# MODEL_PATH = os.path.join(BASE_DIR, "model", "face_model.yml")
+# LABEL_PATH = os.path.join(BASE_DIR, "model", "labels.pkl")
+
+# def enhance_frame(frame):
+#     img_yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
+#     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+#     img_yuv[:,:,0] = clahe.apply(img_yuv[:,:,0])
+#     return cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+
+# def authenticate(selected_user):
+#     IS_CLOUD = os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud"
+    
+#     if not os.path.exists(MODEL_PATH):
+#         st.error("Model missing!")
+#         return False, 999
+
+#     model = cv2.face.LBPHFaceRecognizer_create()
+#     model.read(MODEL_PATH)
+#     with open(LABEL_PATH, "rb") as f: label_map = pickle.load(f)
+#     detector = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+
+#     if not IS_CLOUD:
+#         # ────────── PC MODE ──────────
+#         cam = cv2.VideoCapture(0)
+#         start = time.time()
+#         while time.time() - start < 15:
+#             ret, raw = cam.read()
+#             if not ret: break
+#             frame = enhance_frame(raw)
+#             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#             faces = detector.detectMultiScale(gray, 1.3, 5)
+#             for (x, y, w, h) in faces:
+#                 lab_id, conf = model.predict(gray[y:y+h, x:x+w])
+#                 if label_map.get(lab_id) == selected_user and conf < 50:
+#                     cam.release(); cv2.destroyAllWindows()
+#                     return True, conf
+#             cv2.imshow("BioPay Scan", frame)
+#             if cv2.waitKey(1) == 27: break
+#         cam.release(); cv2.destroyAllWindows(); return False, 999
+
+#     else:
+#         # ────────── MOBILE MODE ──────────
+#         st.warning("📸 Look at the camera and click Verify.")
+#         ctx = webrtc_streamer(
+#             key="face-mobile",
+#             rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+#             media_stream_constraints={"video": True, "audio": False}
+#         )
+#         if st.button("Verify Identity"):
+#             if ctx.video_receiver:
+#                 frame = ctx.video_receiver.get_frame()
+#                 if frame:
+#                     img = enhance_frame(frame.to_ndarray(format="bgr24"))
+#                     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#                     faces = detector.detectMultiScale(gray, 1.3, 5)
+#                     for (x, y, w, h) in faces:
+#                         lab_id, conf = model.predict(gray[y:y+h, x:x+w])
+#                         if label_map.get(lab_id) == selected_user and conf < 75:
+#                             return True, conf
+#             st.error("Recognition Failed")
+#             return False, 999
+#     return False, 999
+
 import cv2
 import pickle
 import os
@@ -187,62 +261,153 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "model", "face_model.yml")
 LABEL_PATH = os.path.join(BASE_DIR, "model", "labels.pkl")
 
+
 def enhance_frame(frame):
     img_yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     img_yuv[:,:,0] = clahe.apply(img_yuv[:,:,0])
     return cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
 
+
 def authenticate(selected_user):
+
     IS_CLOUD = os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud"
-    
+
     if not os.path.exists(MODEL_PATH):
-        st.error("Model missing!")
+        st.error("Face model missing!")
         return False, 999
 
     model = cv2.face.LBPHFaceRecognizer_create()
     model.read(MODEL_PATH)
-    with open(LABEL_PATH, "rb") as f: label_map = pickle.load(f)
-    detector = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
+    with open(LABEL_PATH, "rb") as f:
+        label_map = pickle.load(f)
+
+    detector = cv2.CascadeClassifier(
+        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    )
+
+    best_conf = 999
+
+    # ─────────────────────────────
+    # PC MODE
+    # ─────────────────────────────
     if not IS_CLOUD:
-        # ────────── PC MODE ──────────
+
         cam = cv2.VideoCapture(0)
         start = time.time()
+
         while time.time() - start < 15:
+
             ret, raw = cam.read()
-            if not ret: break
+            if not ret:
+                break
+
             frame = enhance_frame(raw)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = detector.detectMultiScale(gray, 1.3, 5)
-            for (x, y, w, h) in faces:
-                lab_id, conf = model.predict(gray[y:y+h, x:x+w])
-                if label_map.get(lab_id) == selected_user and conf < 50:
-                    cam.release(); cv2.destroyAllWindows()
-                    return True, conf
-            cv2.imshow("BioPay Scan", frame)
-            if cv2.waitKey(1) == 27: break
-        cam.release(); cv2.destroyAllWindows(); return False, 999
 
+            faces = detector.detectMultiScale(gray, 1.3, 5)
+
+            for (x, y, w, h) in faces:
+
+                lab_id, conf = model.predict(gray[y:y+h, x:x+w])
+                predicted_user = label_map.get(lab_id)
+
+                if predicted_user == selected_user:
+
+                    if conf < best_conf:
+                        best_conf = conf
+
+                    if conf < 50:
+
+                        cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
+                        cv2.putText(frame,"Identity Verified",
+                                    (x,y-10),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.7,(0,255,0),2)
+
+                        cam.release()
+                        cv2.destroyAllWindows()
+                        return True, conf
+
+                    else:
+
+                        cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,255),2)
+                        cv2.putText(frame,"Match Weak - Move Closer",
+                                    (x,y-10),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.7,(0,255,255),2)
+
+                else:
+
+                    cv2.rectangle(frame,(x,y),(x+w,y+h),(0,0,255),2)
+                    cv2.putText(frame,"Unknown Identity",
+                                (x,y-10),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.7,(0,0,255),2)
+
+            cv2.imshow("BioPay Secure Scan", frame)
+
+            if cv2.waitKey(1) == 27:
+                break
+
+        cam.release()
+        cv2.destroyAllWindows()
+        return False, best_conf
+
+
+    # ─────────────────────────────
+    # MOBILE / CLOUD MODE
+    # ─────────────────────────────
     else:
-        # ────────── MOBILE MODE ──────────
-        st.warning("📸 Look at the camera and click Verify.")
+
+        st.warning("📸 Look at the camera and press Verify")
+
         ctx = webrtc_streamer(
             key="face-mobile",
-            rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-            media_stream_constraints={"video": True, "audio": False}
+            rtc_configuration={
+                "iceServers":[{"urls":["stun:stun.l.google.com:19302"]}]
+            },
+            media_stream_constraints={"video":True,"audio":False}
         )
+
         if st.button("Verify Identity"):
+
             if ctx.video_receiver:
+
                 frame = ctx.video_receiver.get_frame()
+
                 if frame:
+
                     img = enhance_frame(frame.to_ndarray(format="bgr24"))
                     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    faces = detector.detectMultiScale(gray, 1.3, 5)
-                    for (x, y, w, h) in faces:
-                        lab_id, conf = model.predict(gray[y:y+h, x:x+w])
-                        if label_map.get(lab_id) == selected_user and conf < 75:
-                            return True, conf
+
+                    faces = detector.detectMultiScale(gray,1.3,5)
+
+                    for (x,y,w,h) in faces:
+
+                        lab_id, conf = model.predict(gray[y:y+h,x:x+w])
+                        predicted_user = label_map.get(lab_id)
+
+                        if predicted_user == selected_user:
+
+                            if conf < best_conf:
+                                best_conf = conf
+
+                            if conf < 75:
+
+                                st.success("✅ Identity Verified")
+                                return True, conf
+
+                            else:
+
+                                st.warning("⚠ Weak Match - Move Closer")
+
+                        else:
+
+                            st.error("❌ Unknown Identity")
+
             st.error("Recognition Failed")
-            return False, 999
-    return False, 999
+            return False, best_conf
+
+    return False, best_conf

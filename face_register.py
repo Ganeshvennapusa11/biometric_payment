@@ -13,24 +13,42 @@ from cryptography.fernet import Fernet
 # For the demo, we use this fixed Fernet-compatible key.
 SECRET_KEY = b'6f_X-33p_kX-L1_Z8R-9_rW8_L3_M-pQ-X8_R-w_8_M=' 
 cipher = Fernet(SECRET_KEY)
+import hashlib
 
-def register_user(full_name, email, mobile, native_city, bank_name, security_qna, password):
+def register_user(full_name, email, mobile, native_city, bank_name, security_qna, password, personal_pin: str):
     safe_name = email.replace("@", "_").replace(".", "_")
     path = f"dataset/{safe_name}"
     os.makedirs(path, exist_ok=True)
+    
+
+    if not personal_pin.isdigit() or len(personal_pin) != 4:
+      raise ValueError("PIN must be exactly 4 numeric digits.")
+
+    pin_hash = hashlib.sha256(personal_pin.encode()).hexdigest()
 
     # 1. Metadata & ID Generation
     clean_name = full_name.split()[0].lower()
     unique_id = f"{clean_name}.{mobile[-4:]}@{bank_name.lower()}"
     
+    # user_data = {
+    #     "full_name": full_name, 
+    #     "unique_id": unique_id, 
+    #     "balance": 5000, 
+    #     "email": email,
+    #     "password": password,  # NEW: Store Password
+    #     "failed_attempts": 0,
+    #     "security_questions": security_qna
+    # }
     user_data = {
-        "full_name": full_name, 
-        "unique_id": unique_id, 
-        "balance": 5000, 
-        "email": email,
-        "password": password,  # NEW: Store Password
-        "failed_attempts": 0,
-        "security_questions": security_qna
+    "full_name":         full_name,
+    "unique_id":         unique_id,
+    "balance":           5000,
+    "email":             email,
+    "password":          password,
+    "personal_pin_hash": pin_hash,   # ← add this line
+    "failed_attempts":   0,
+    "security_questions": security_qna,
+    "transactions":      [],
     }
     
     with open(f"{path}/user.json", "w") as f:
